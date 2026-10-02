@@ -24,24 +24,25 @@ Folders: crypto/, auth/, tracing/, audit/, demo/, web/, tests/, keys/ (git-ignor
 5. Use `secrets` / `os.urandom` for anything secret. `random` is allowed only in simulations.
 6. Every module gets a pytest file in tests/. A module is done only when its tests pass.
 7. Every function has type hints and a docstring stating its security purpose.
-8. Never log or print passwords, shares, or keys. Never commit keys, .env, or *.db.
+8. Never log or print passwords, shares, or keys. Never commit keys, .env, or \*.db.
 9. Ask before adding any new dependency. No paid services.
 10. When fixing a bug: fix only that bug. Do not refactor or rename anything else.
 
 ## 3. Current status (EDIT THIS EVERY SESSION)
 
 - Date of last update: 2026-10-02
-- Tool used last: Claude Code
-- Current phase: Phase 0 (setup)
-- Last completed module: crypto/aes_gcm.py (Layer 1.1)
-- Currently working on: crypto/shamir.py
-- NEXT STEP: Continue Layer 1 (crypto/) — shamir.py (3.3)
-- Tests passing: 7 / 7
+- Tool used last: GitHub Copilot
+- Current phase: Layer 1 (cryptographic core)
+- Last completed module: crypto/kdf.py (Layer 1.2)
+- Currently working on: none
+- NEXT STEP: crypto/keywrap.py (3.5)
+- Tests passing: 23 / 23
 - Last git commit message: phase0: project setup
 
 ## 4. Master checklist
 
 ### Phase 0: Setup
+
 - [ ] Virtual environment created, requirements.txt saved
 - [ ] Folder structure and empty files created
 - [ ] .gitignore in place BEFORE first commit
@@ -50,16 +51,18 @@ Folders: crypto/, auth/, tracing/, audit/, demo/, web/, tests/, keys/ (git-ignor
 - [ ] `pytest` runs
 
 ### Layer 1: Cryptographic core (crypto/)
+
 - [x] 3.1 aes_gcm.py (+ tests: round trip, tamper, wrong key, wrong aad)
-- [ ] 3.2 kdf.py (master secret + HKDF)
-- [ ] 3.3 shamir.py (all k-subsets recover; k-1 fails)
-- [ ] 3.4 feldman.py (RFC 3526 2048-bit prime, q=(p-1)/2, g=4; verify tests)
+- [x] 3.2 kdf.py (master secret + HKDF)
+- [x] 3.3 shamir.py (all k-subsets recover; k-1 fails)
+- [x] 3.4 feldman.py (RFC 3526 2048-bit prime, q=(p-1)/2, g=4; verify tests)
 - [ ] 3.5 keywrap.py (hybrid AES-GCM + RSA-OAEP; DB holds only blobs)
 - [ ] 3.6 signing.py (Ed25519 over paper hash + exam id + window)
 - [ ] 3.7 rotation.py (new polynomial, old shares fail; optional re-key)
 - [ ] 3.8 paper_service.py (create_exam, release_exam) + CLI demo
 
 ### Layer 4: Audit and PKI (audit/, crypto/pki.py)
+
 - [ ] 6.1 hashchain.py (append-only, SQLite triggers block UPDATE/DELETE)
 - [ ] 6.2 merkle.py (root, proofs)
 - [ ] 6.3 daily_root.py (signed daily root)
@@ -68,6 +71,7 @@ Folders: crypto/, auth/, tracing/, audit/, demo/, web/, tests/, keys/ (git-ignor
 - [ ] 6.6 Revocation wired into login, share submission, downloads
 
 ### Layer 2: Access control (auth/)
+
 - [ ] 4.1 passwords.py (Argon2id + policy)
 - [ ] 4.2 totp.py (QR enrolment, replay protection)
 - [ ] 4.3 rbac.py (role_required, default deny)
@@ -78,6 +82,7 @@ Folders: crypto/, auth/, tracing/, audit/, demo/, web/, tests/, keys/ (git-ignor
 - [ ] 4.8 timelock.py (STRETCH, do last)
 
 ### Layer 3: Leak tracing (tracing/)
+
 - [ ] 5.1 variants.json (40+ reviewed binary slots)
 - [ ] 5.2 codes.py (unique patterns, minimum Hamming distance)
 - [ ] 5.3 tardos.py (bias vector, codewords, accusation score)
@@ -88,11 +93,13 @@ Folders: crypto/, auth/, tracing/, audit/, demo/, web/, tests/, keys/ (git-ignor
 - [ ] 5.8 simulate.py (graphs saved to docs/)
 
 ### Layer 5: Detection and demos (demo/)
+
 - [ ] 7.1 ecb_vs_gcm.py + /demo/ecb page + one-byte tamper test
 - [ ] 7.2 honeytoken.py (decoy file, CRITICAL audit entry, alert, account suspension)
 - [ ] 7.3 redteam.py (14 attacks, PASS/FAIL table, exit code, docs/redteam_report.md)
 
 ### Web app (web/)
+
 - [ ] base.html with Bootstrap, role-based menu, flash messages
 - [ ] login + 2FA pages, enroll_2fa
 - [ ] Admin pages (users, revoke, rotate, alerts)
@@ -104,6 +111,7 @@ Folders: crypto/, auth/, tracing/, audit/, demo/, web/, tests/, keys/ (git-ignor
 - [ ] Security: CSRF, security headers, session settings, upload limits, error pages
 
 ### Final
+
 - [ ] Full pytest suite green
 - [ ] Red-team script all PASS
 - [ ] End-to-end demo script rehearsed twice
@@ -131,11 +139,18 @@ Folders: crypto/, auth/, tracing/, audit/, demo/, web/, tests/, keys/ (git-ignor
 
 ## 7. Files changed in the last session
 
-- None yet.
+- crypto/kdf.py (new) — 256-bit master-secret generation and HKDF-SHA256 AES key derivation
+- tests/test_kdf.py (new) — secret generation, stable 32-byte derivation, and input validation tests
+- crypto/feldman.py (new) — Feldman commitments and share verification using RFC 3526 group 14
+- tests/test_feldman.py (new) — honest, modified-value, and mismatched-index share verification tests
+- crypto/aes_gcm.py (new) — AES-256-GCM encrypt/decrypt with 32-byte key validation, 12-byte nonce, AAD binding
+- tests/test_aes_gcm.py (new) — 7 tests: round trip, tamper, wrong key, wrong aad, short/long key
+- crypto/shamir.py (new) — Shamir secret sharing split/combine over a prime field
+- tests/test_shamir.py (new) — 7 tests: k-subsets recover, k-1 fails, 3-of-5 all 10 subsets, input validation
 
 ## 8. Cut list (apply in this order if time runs short)
 
-1. Time-lock puzzle  2. LSB image marks  3. Schnorr ZKP  4. Full X.509 CA (use signed revocation list)  5. Zero-width marks and OCR
+1. Time-lock puzzle 2. LSB image marks 3. Schnorr ZKP 4. Full X.509 CA (use signed revocation list) 5. Zero-width marks and OCR
 
 NEVER cut: AES-GCM, Shamir, signatures, hash chain + verifier, wording fingerprint + analyzer, red-team script, tests.
 
@@ -157,7 +172,9 @@ Do not change anything else.
 
 ## 11. Session log (add one line per session)
 
-| Date | Tool | What was done | Next step |
-| --- | --- | --- | --- |
-| ____ | ____ | Project started | Run P1 (skeleton) |
-| 2026-10-02 | Claude Code | Wrote crypto/aes_gcm.py and tests/test_aes_gcm.py (7 tests pass). | Next step: shamir.py (3.3) |
+| Date       | Tool           | What was done                                                                       | Next step                          |
+| ---------- | -------------- | ----------------------------------------------------------------------------------- | ---------------------------------- |
+| \_\_\_\_   | \_\_\_\_       | Project started                                                                     | Run P1 (skeleton)                  |
+| 2026-10-02 | Claude Code    | Wrote crypto/aes_gcm.py (7 tests) and crypto/shamir.py (7 tests); 14/14 tests pass. | Next step: crypto/feldman.py (3.4) |
+| 2026-10-02 | GitHub Copilot | Implemented crypto/feldman.py and tests/test_feldman.py; full suite passes 17/17.   | Next step: crypto/kdf.py (3.2)     |
+| 2026-10-02 | GitHub Copilot | Implemented crypto/kdf.py and tests/test_kdf.py; full suite passes 23/23.           | Next step: crypto/keywrap.py (3.5) |
