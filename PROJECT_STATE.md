@@ -30,14 +30,14 @@ Folders: crypto/, auth/, tracing/, audit/, demo/, web/, tests/, keys/ (git-ignor
 
 ## 3. Current status (EDIT THIS EVERY SESSION)
 
-- Date of last update: ____
-- Tool used last: ____
-- Current phase: Phase 0 (not started)
-- Last completed module: none
-- Currently working on: none
-- NEXT STEP: Run prompt P1 (project skeleton) from the Implementation Plan, Section 12.
-- Tests passing: 0 / 0
-- Last git commit message: ____
+- Date of last update: 2026-10-02
+- Tool used last: Claude Code
+- Current phase: Phase 0 (setup)
+- Last completed module: crypto/aes_gcm.py (Layer 1.1)
+- Currently working on: crypto/shamir.py
+- NEXT STEP: Continue Layer 1 (crypto/) — shamir.py (3.3)
+- Tests passing: 7 / 7
+- Last git commit message: phase0: project setup
 
 ## 4. Master checklist
 
@@ -50,7 +50,7 @@ Folders: crypto/, auth/, tracing/, audit/, demo/, web/, tests/, keys/ (git-ignor
 - [ ] `pytest` runs
 
 ### Layer 1: Cryptographic core (crypto/)
-- [ ] 3.1 aes_gcm.py (+ tests: round trip, tamper, wrong key, wrong aad)
+- [x] 3.1 aes_gcm.py (+ tests: round trip, tamper, wrong key, wrong aad)
 - [ ] 3.2 kdf.py (master secret + HKDF)
 - [ ] 3.3 shamir.py (all k-subsets recover; k-1 fails)
 - [ ] 3.4 feldman.py (RFC 3526 2048-bit prime, q=(p-1)/2, g=4; verify tests)
@@ -160,3 +160,4 @@ Do not change anything else.
 | Date | Tool | What was done | Next step |
 | --- | --- | --- | --- |
 | ____ | ____ | Project started | Run P1 (skeleton) |
+| 2026-10-02 | Claude Code | Wrote crypto/aes_gcm.py and tests/test_aes_gcm.py (7 tests pass). | Next step: shamir.py (3.3) |
