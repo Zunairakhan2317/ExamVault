@@ -33,10 +33,10 @@ Folders: crypto/, auth/, tracing/, audit/, demo/, web/, tests/, keys/ (git-ignor
 - Date of last update: 2026-10-02
 - Tool used last: GitHub Copilot
 - Current phase: Layer 1 (cryptographic core)
-- Last completed module: crypto/keywrap.py (Layer 1.5)
+- Last completed module: crypto/rotation.py (Layer 1.7)
 - Currently working on: none
-- NEXT STEP: crypto/signing.py (3.6)
-- Tests passing: 25 / 25
+- NEXT STEP: crypto/paper_service.py (3.8)
+- Tests passing: 31 / 31
 - Last git commit message: phase0: project setup
 
 ## 4. Master checklist
@@ -57,8 +57,8 @@ Folders: crypto/, auth/, tracing/, audit/, demo/, web/, tests/, keys/ (git-ignor
 - [x] 3.3 shamir.py (all k-subsets recover; k-1 fails)
 - [x] 3.4 feldman.py (RFC 3526 2048-bit prime, q=(p-1)/2, g=4; verify tests)
 - [x] 3.5 keywrap.py (hybrid AES-GCM + RSA-OAEP; DB holds only blobs)
-- [ ] 3.6 signing.py (Ed25519 over paper hash + exam id + window)
-- [ ] 3.7 rotation.py (new polynomial, old shares fail; optional re-key)
+- [x] 3.6 signing.py (Ed25519 over paper hash + exam id + window)
+- [x] 3.7 rotation.py (new polynomial, old shares fail; optional re-key)
 - [ ] 3.8 paper_service.py (create_exam, release_exam) + CLI demo
 
 ### Layer 4: Audit and PKI (audit/, crypto/pki.py)
@@ -139,6 +139,10 @@ Folders: crypto/, auth/, tracing/, audit/, demo/, web/, tests/, keys/ (git-ignor
 
 ## 7. Files changed in the last session
 
+- crypto/rotation.py (new) — refreshes shares with a fresh polynomial over the existing field while preserving the secret
+- tests/test_rotation.py (new) — verifies new shares and old/new polynomial invalidation
+- crypto/signing.py (new) — Ed25519 key generation, message signing, and signature verification
+- tests/test_signing.py (new) — valid signature, tampered message, and wrong public key cases
 - crypto/keywrap.py (new) — share encryption using AES-GCM with the AES key wrapped by RSA-3072 OAEP-SHA256
 - tests/test_keywrap.py (new) — SQLite BLOB round trip and rejection with the wrong private key
 - crypto/kdf.py (new) — 256-bit master-secret generation and HKDF-SHA256 AES key derivation
@@ -174,10 +178,12 @@ Do not change anything else.
 
 ## 11. Session log (add one line per session)
 
-| Date       | Tool           | What was done                                                                       | Next step                          |
-| ---------- | -------------- | ----------------------------------------------------------------------------------- | ---------------------------------- |
-| \_\_\_\_   | \_\_\_\_       | Project started                                                                     | Run P1 (skeleton)                  |
-| 2026-10-02 | Claude Code    | Wrote crypto/aes_gcm.py (7 tests) and crypto/shamir.py (7 tests); 14/14 tests pass. | Next step: crypto/feldman.py (3.4) |
-| 2026-10-02 | GitHub Copilot | Implemented crypto/feldman.py and tests/test_feldman.py; full suite passes 17/17.   | Next step: crypto/kdf.py (3.2)     |
-| 2026-10-02 | GitHub Copilot | Implemented crypto/kdf.py and tests/test_kdf.py; full suite passes 23/23.           | Next step: crypto/keywrap.py (3.5) |
-| 2026-10-02 | GitHub Copilot | Implemented crypto/keywrap.py and tests/test_keywrap.py; full suite passes 25/25.   | Next step: crypto/signing.py (3.6) |
+| Date       | Tool           | What was done                                                                       | Next step                                |
+| ---------- | -------------- | ----------------------------------------------------------------------------------- | ---------------------------------------- |
+| \_\_\_\_   | \_\_\_\_       | Project started                                                                     | Run P1 (skeleton)                        |
+| 2026-10-02 | Claude Code    | Wrote crypto/aes_gcm.py (7 tests) and crypto/shamir.py (7 tests); 14/14 tests pass. | Next step: crypto/feldman.py (3.4)       |
+| 2026-10-02 | GitHub Copilot | Implemented crypto/feldman.py and tests/test_feldman.py; full suite passes 17/17.   | Next step: crypto/kdf.py (3.2)           |
+| 2026-10-02 | GitHub Copilot | Implemented crypto/kdf.py and tests/test_kdf.py; full suite passes 23/23.           | Next step: crypto/keywrap.py (3.5)       |
+| 2026-10-02 | GitHub Copilot | Implemented crypto/keywrap.py and tests/test_keywrap.py; full suite passes 25/25.   | Next step: crypto/signing.py (3.6)       |
+| 2026-10-02 | GitHub Copilot | Implemented crypto/signing.py and tests/test_signing.py; full suite passes 28/28.   | Next step: crypto/rotation.py (3.7)      |
+| 2026-10-02 | GitHub Copilot | Implemented crypto/rotation.py and tests/test_rotation.py; full suite passes 31/31. | Next step: crypto/paper_service.py (3.8) |
