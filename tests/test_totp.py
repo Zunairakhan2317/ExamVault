@@ -3,6 +3,7 @@
 import pyotp
 import pytest
 from cryptography.exceptions import InvalidTag
+import inspect
 from urllib.parse import unquote
 
 from auth.totp import (
@@ -62,6 +63,13 @@ def test_current_step_constant_matches_pyotp_interval() -> None:
     assert STEP_SECONDS == 30
     assert DIGITS == 6
     assert NONCE_SIZE == 12
+
+
+def test_verify_code_uses_pyotp_valid_window_one() -> None:
+    """TOTP verification delegates bounded adjacent-step acceptance to PyOTP."""
+    import auth.totp
+
+    assert "valid_window=1" in inspect.getsource(auth.totp.verify_code)
 
 
 def test_current_step_none_uses_clock() -> None:

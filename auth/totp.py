@@ -54,7 +54,7 @@ def verify_code(
     last_used_step: int | None,
     now: float | None = None,
 ) -> tuple[bool, int | None]:
-    """Verify a nearby TOTP and reject any step already accepted for replay protection."""
+    """Verify a TOTP within one adjacent step and reject reused steps for replay protection."""
     if not isinstance(code, str):
         return False, None
     normalized_code = code.replace(" ", "")
@@ -65,13 +65,21 @@ def verify_code(
     ):
         return False, None
 
-    step_now = current_step(now)
-    totp = pyotp.TOTP(secret, digits=DIGITS, interval=STEP_SECONDS)
-    matching_steps: list[int] = []
+    timestamp = time.time() if now is None else now
+    totp = pyotp.TOTP(secret)
     try:
+        if not totp.verify(
+            normalized_code,
+            for_time=int(timestamp),
+            valid_window=1,
+        ):
+            return False, None
+
+        step_now = current_step(timestamp)
+        matching_steps: list[int] = []
         for step in (step_now - 1, step_now, step_now + 1):
             expected = totp.at(step * STEP_SECONDS)
-            if hmac.compare_digest(normalized_code, expected):
+            if hmac.compare_digest(expected, normalized_code):
                 matching_steps.append(step)
     except (binascii.Error, ValueError, TypeError, OverflowError, struct.error):
         return False, None
@@ -79,9 +87,9 @@ def verify_code(
     if not matching_steps:
         return False, None
     matched_step = max(matching_steps)
-    if last_used_step is None or matched_step > last_used_step:
-        return True, matched_step
-    return False, None
+    if last_used_step is not None and matched_step <= last_used_step:
+        return False, None
+    return True, matched_step
 
 
 def protect_secret(secret: str, key: bytes, username: str) -> bytes:

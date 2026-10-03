@@ -30,13 +30,13 @@ Folders: crypto/, auth/, tracing/, audit/, demo/, web/, tests/, keys/ (git-ignor
 
 ## 3. Current status (EDIT THIS EVERY SESSION)
 
-- Date of last update: 2026-10-02
+- Date of last update: 2026-10-03
 - Tool used last: GitHub Copilot
 - Current phase: Layer 4 (Audit and PKI)
-- Last completed module: audit/verifier.py (Layer 4.4)
-- Currently working on: auth/passwords.py and auth/totp.py (4.1, 4.2)
-- NEXT STEP: auth/passwords.py and auth/totp.py, then auth/rbac.py, auth/lockout.py, auth/timewindow.py
-- Tests passing: 77 / 77
+- Last completed module: auth/totp.py
+- Currently working on: auth/rbac.py, auth/lockout.py, auth/timewindow.py
+- NEXT STEP: auth/rbac.py, auth/lockout.py, auth/timewindow.py
+- Tests passing: 111 / 111
 - Last git commit message: fix: shamir pow inverse, verifier first_broken_index, test gaps, state updated
 
 ## 4. Master checklist
@@ -73,8 +73,8 @@ Folders: crypto/, auth/, tracing/, audit/, demo/, web/, tests/, keys/ (git-ignor
 
 ### Layer 2: Access control (auth/)
 
-- [ ] 4.1 passwords.py (Argon2id + policy)
-- [ ] 4.2 totp.py (QR enrolment, replay protection)
+- [x] 4.1 passwords.py (Argon2id + policy)
+- [x] 4.2 totp.py (QR enrolment, replay protection)
 - [ ] 4.3 rbac.py (role_required, default deny)
 - [ ] 4.4 lockout.py + Flask-Limiter
 - [ ] 4.5 timewindow.py (server UTC only)
@@ -140,6 +140,10 @@ Folders: crypto/, auth/, tracing/, audit/, demo/, web/, tests/, keys/ (git-ignor
 
 ## 7. Files changed in the last session
 
+- auth/passwords.py (new) — Argon2id password hashing, verification, rehash detection, and password policy
+- auth/totp.py (new) — TOTP provisioning, replay-resistant code verification, QR rendering, and AES-GCM secret protection
+- tests/test_passwords.py (new) — password hashing, verification, policy, and rehash coverage
+- tests/test_totp.py (new) — TOTP step window, replay protection, provisioning, QR, and encrypted-secret coverage
 - audit/verifier.py (new) — full-chain, daily Merkle-root, and Ed25519 signature checks with exact affected entry IDs and a CLI
 - tests/test_verifier.py (new) — green verification, edited details/hash detection, and CLI success/failure behavior
 - audit/daily_root.py — public-key-only configuration hook for standalone verification processes
@@ -196,23 +200,24 @@ Do not change anything else.
 
 ## 11. Session log (add one line per session)
 
-| Date       | Tool           | What was done                                                                                         | Next step                                     |
-| ---------- | -------------- | ----------------------------------------------------------------------------------------------------- | --------------------------------------------- |
-| \_\_\_\_   | \_\_\_\_       | Project started                                                                                       | Run P1 (skeleton)                             |
-| 2026-10-02 | Claude Code    | Wrote crypto/aes_gcm.py (7 tests) and crypto/shamir.py (7 tests); 14/14 tests pass.                   | Next step: crypto/feldman.py (3.4)            |
-| 2026-10-02 | GitHub Copilot | Implemented crypto/feldman.py and tests/test_feldman.py; full suite passes 17/17.                     | Next step: crypto/kdf.py (3.2)                |
-| 2026-10-02 | GitHub Copilot | Implemented crypto/kdf.py and tests/test_kdf.py; full suite passes 23/23.                             | Next step: crypto/keywrap.py (3.5)            |
-| 2026-10-02 | GitHub Copilot | Implemented crypto/keywrap.py and tests/test_keywrap.py; full suite passes 25/25.                     | Next step: crypto/signing.py (3.6)            |
-| 2026-10-02 | GitHub Copilot | Implemented crypto/signing.py and tests/test_signing.py; full suite passes 28/28.                     | Next step: crypto/rotation.py (3.7)           |
-| 2026-10-02 | GitHub Copilot | Implemented crypto/rotation.py and tests/test_rotation.py; full suite passes 31/31.                   | Next step: crypto/paper_service.py (3.8)      |
-| 2026-10-02 | GitHub Copilot | Implemented services/paper_service.py and tests/test_paper_service.py; full suite passes 34/34.       | Next step: add paper-service CLI demo (3.8)   |
-| 2026-10-02 | GitHub Copilot | Placed paper service at crypto/services/paper_service.py and aligned the checklist; tests pass 34/34. | Next step: add paper-service CLI demo (3.9)   |
-| 2026-10-02 | GitHub Copilot | Closed Layer 1 audit gaps: full-field Shamir sampling and signed/enforced UTC windows; 42/42 pass.    | Next step: audit/hashchain.py (6.1)           |
-| 2026-10-02 | GitHub Copilot | Implemented audit/hashchain.py and tests/test_hashchain.py; full suite passes 48/48.                  | Next step: audit/merkle.py (6.2)              |
-| 2026-10-02 | GitHub Copilot | Implemented audit/merkle.py and tests/test_merkle.py; full suite passes 57/57.                        | Next step: audit/daily_root.py (6.3)          |
-| 2026-10-02 | GitHub Copilot | Implemented audit/daily_root.py and tests/test_daily_root.py; full suite passes 61/61.                | Next step: audit/verifier.py (6.4)            |
-| 2026-10-02 | GitHub Copilot | Implemented audit/verifier.py and tests/test_verifier.py; full suite passes 66/66.                    | Next step: crypto/pki.py (6.5)                |
-| 2026-10-03 | GitHub Copilot | Added requested test-gap coverage; full suite passes 77/77.                                           | auth/passwords.py and auth/totp.py (4.1, 4.2) |
+| Date       | Tool           | What was done                                                                                         | Next step                                         |
+| ---------- | -------------- | ----------------------------------------------------------------------------------------------------- | ------------------------------------------------- |
+| \_\_\_\_   | \_\_\_\_       | Project started                                                                                       | Run P1 (skeleton)                                 |
+| 2026-10-02 | Claude Code    | Wrote crypto/aes_gcm.py (7 tests) and crypto/shamir.py (7 tests); 14/14 tests pass.                   | Next step: crypto/feldman.py (3.4)                |
+| 2026-10-02 | GitHub Copilot | Implemented crypto/feldman.py and tests/test_feldman.py; full suite passes 17/17.                     | Next step: crypto/kdf.py (3.2)                    |
+| 2026-10-02 | GitHub Copilot | Implemented crypto/kdf.py and tests/test_kdf.py; full suite passes 23/23.                             | Next step: crypto/keywrap.py (3.5)                |
+| 2026-10-02 | GitHub Copilot | Implemented crypto/keywrap.py and tests/test_keywrap.py; full suite passes 25/25.                     | Next step: crypto/signing.py (3.6)                |
+| 2026-10-02 | GitHub Copilot | Implemented crypto/signing.py and tests/test_signing.py; full suite passes 28/28.                     | Next step: crypto/rotation.py (3.7)               |
+| 2026-10-02 | GitHub Copilot | Implemented crypto/rotation.py and tests/test_rotation.py; full suite passes 31/31.                   | Next step: crypto/paper_service.py (3.8)          |
+| 2026-10-02 | GitHub Copilot | Implemented services/paper_service.py and tests/test_paper_service.py; full suite passes 34/34.       | Next step: add paper-service CLI demo (3.8)       |
+| 2026-10-02 | GitHub Copilot | Placed paper service at crypto/services/paper_service.py and aligned the checklist; tests pass 34/34. | Next step: add paper-service CLI demo (3.9)       |
+| 2026-10-02 | GitHub Copilot | Closed Layer 1 audit gaps: full-field Shamir sampling and signed/enforced UTC windows; 42/42 pass.    | Next step: audit/hashchain.py (6.1)               |
+| 2026-10-02 | GitHub Copilot | Implemented audit/hashchain.py and tests/test_hashchain.py; full suite passes 48/48.                  | Next step: audit/merkle.py (6.2)                  |
+| 2026-10-02 | GitHub Copilot | Implemented audit/merkle.py and tests/test_merkle.py; full suite passes 57/57.                        | Next step: audit/daily_root.py (6.3)              |
+| 2026-10-02 | GitHub Copilot | Implemented audit/daily_root.py and tests/test_daily_root.py; full suite passes 61/61.                | Next step: audit/verifier.py (6.4)                |
+| 2026-10-02 | GitHub Copilot | Implemented audit/verifier.py and tests/test_verifier.py; full suite passes 66/66.                    | Next step: crypto/pki.py (6.5)                    |
+| 2026-10-03 | GitHub Copilot | Added requested test-gap coverage; full suite passes 77/77.                                           | auth/passwords.py and auth/totp.py (4.1, 4.2)     |
+| 2026-10-03 | GitHub Copilot | Implemented auth/passwords.py and auth/totp.py with tests; full suite passes 111/111.                 | auth/rbac.py, auth/lockout.py, auth/timewindow.py |
 
 ## Real names in the code (use these in all future prompts)
 
