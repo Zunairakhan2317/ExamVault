@@ -63,6 +63,26 @@ def test_all_10_subsets_3_of_5() -> None:
         assert reconstructed == secret, \
             f"Subset {subset} failed: got {reconstructed}, expected {secret}"
 
+
+def test_every_3_subset_recovers_and_every_2_subset_fails_for_3_of_5(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """For a deterministic 3-of-5 polynomial, all triples recover but no pair does."""
+    prime = 997
+    secret = 123
+    coefficients = iter((7, 1))
+    monkeypatch.setattr(
+        "crypto.shamir.secrets.randbelow",
+        lambda upper_bound: next(coefficients),
+    )
+
+    shares = split(secret, k=3, n=5, prime=prime)
+
+    for subset in itertools.combinations(shares, 3):
+        assert combine(list(subset), prime) == secret
+    for subset in itertools.combinations(shares, 2):
+        assert combine(list(subset), prime) != secret
+
 def test_input_validation_k_too_small() -> None:
     """k < 2 should raise ValueError."""
     secret = 42
@@ -92,3 +112,21 @@ def test_secret_out_of_range() -> None:
         split(secret=prime, k=2, n=3, prime=prime)  # secret == prime
     with pytest.raises(ValueError):
         split(secret=-1, k=2, n=3, prime=prime)   # negative
+
+
+def test_polynomial_coefficients_are_sampled_from_full_field(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Zero is a valid random coefficient, preserving uniform field sampling."""
+    prime = 101
+    requested_ranges: list[int] = []
+
+    def sample_zero(upper_bound: int) -> int:
+        requested_ranges.append(upper_bound)
+        return 0
+
+    monkeypatch.setattr("crypto.shamir.secrets.randbelow", sample_zero)
+    shares = split(secret=42, k=3, n=4, prime=prime)
+
+    assert requested_ranges == [prime, prime]
+    assert all(y == 42 for _, y in shares)

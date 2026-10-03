@@ -42,7 +42,7 @@ def rotate_shares(
         raise ValueError("num_shares must be less than the field prime")
 
     coefficients = [old_secret]
-    coefficients.extend(secrets.randbelow(Q - 1) + 1 for _ in range(threshold - 1))
+    coefficients.extend(secrets.randbelow(Q) for _ in range(threshold - 1))
     shares = [
         (x, _eval_poly(coefficients, x, Q))
         for x in range(1, num_shares + 1)

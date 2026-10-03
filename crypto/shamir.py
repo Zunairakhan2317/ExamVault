@@ -16,30 +16,6 @@ from typing import List, Tuple
 Point = Tuple[int, int]  # (x, y) share
 
 
-def _modinv(a: int, p: int) -> int:
-    """Modular inverse of a modulo prime p using the extended Euclidean algorithm.
-
-    Returns x such that a * x ≡ 1 (mod p).  Raises ValueError if inverse does
-    not exist (i.e. a % p == 0).
-    """
-    if a % p == 0:
-        raise ValueError("Cannot invert 0 modulo p")
-    # Python 3.8+ supports pow(a, -1, p) but we implement manually for clarity.
-    # Extended GCD
-    if a < 0:
-        a = a % p
-    g, x, _ = _extended_gcd(a, p)
-    if g != 1:
-        raise ValueError("Modular inverse does not exist")
-    return x % p
-
-
-def _extended_gcd(a: int, b: int) -> Tuple[int, int, int]:
-    """Return (gcd, x, y) such that a*x + b*y = gcd."""
-    if a == 0:
-        return b, 0, 1
-    g, x, y = _extended_gcd(b % a, a)
-    return g, y - (b // a) * x, x
 
 
 def split(secret: int, k: int, n: int, prime: int) -> List[Point]:
@@ -70,8 +46,8 @@ def split(secret: int, k: int, n: int, prime: int) -> List[Point]:
     if not (0 <= secret < prime):
         raise ValueError(f"secret must be in [0, {prime - 1}], got {secret}")
 
-    # Generate k-1 random coefficients (a1 … a_{k-1})
-    coeffs: List[int] = [secrets.randbelow(prime - 1) + 1 for _ in range(k - 1)]
+    # Sample uniformly from the full field to preserve perfect secrecy.
+    coeffs: List[int] = [secrets.randbelow(prime) for _ in range(k - 1)]
     # Ensure constant term is the secret; we prepend it so polynomial is:
     # f(x) = secret + a1*x + a2*x^2 + ... + a_{k-1}*x^{k-1}
     coeffs = [secret] + coeffs
@@ -141,8 +117,10 @@ def combine(shares: List[Point], prime: int) -> int:
                 continue
             num = (num * (0 - xj)) % prime
             den = (den * (xi - xj)) % prime
-        # modular inverse of denominator
-        den_inv = _modinv(den, prime)
+        # modular inverse of denominator using the built-in modular exponentiation.
+        # pow(den, -1, prime) computes the inverse of den modulo prime and raises
+        # ValueError when no inverse exists (i.e. den % prime == 0).
+        den_inv = pow(den, -1, prime)
         term = (yi * num * den_inv) % prime
         secret = (secret + term) % prime
     return secret

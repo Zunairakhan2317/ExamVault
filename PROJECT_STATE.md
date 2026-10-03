@@ -32,12 +32,12 @@ Folders: crypto/, auth/, tracing/, audit/, demo/, web/, tests/, keys/ (git-ignor
 
 - Date of last update: 2026-10-02
 - Tool used last: GitHub Copilot
-- Current phase: Layer 1 (cryptographic core)
-- Last completed module: crypto/rotation.py (Layer 1.7)
-- Currently working on: none
-- NEXT STEP: crypto/paper_service.py (3.8)
-- Tests passing: 31 / 31
-- Last git commit message: phase0: project setup
+- Current phase: Layer 4 (Audit and PKI)
+- Last completed module: audit/verifier.py (Layer 4.4)
+- Currently working on: auth/passwords.py
+- NEXT STEP: crypto/pki.py (6.5)
+- Tests passing: 77 / 77
+- Last git commit message: Updates
 
 ## 4. Master checklist
 
@@ -54,19 +54,20 @@ Folders: crypto/, auth/, tracing/, audit/, demo/, web/, tests/, keys/ (git-ignor
 
 - [x] 3.1 aes_gcm.py (+ tests: round trip, tamper, wrong key, wrong aad)
 - [x] 3.2 kdf.py (master secret + HKDF)
-- [x] 3.3 shamir.py (all k-subsets recover; k-1 fails)
+- [x] 3.3 shamir.py (sample polynomial coefficients uniformly from the full field)
 - [x] 3.4 feldman.py (RFC 3526 2048-bit prime, q=(p-1)/2, g=4; verify tests)
 - [x] 3.5 keywrap.py (hybrid AES-GCM + RSA-OAEP; DB holds only blobs)
-- [x] 3.6 signing.py (Ed25519 over paper hash + exam id + window)
+- [x] 3.6 signing.py (Ed25519 signatures bind paper hash + exam id + release window)
 - [x] 3.7 rotation.py (new polynomial, old shares fail; optional re-key)
-- [ ] 3.8 paper_service.py (create_exam, release_exam) + CLI demo
+- [x] 3.8 crypto/services/paper_service.py (create_exam, release_exam; signed and enforced release window)
+- [x] 3.9 paper-service CLI demo
 
 ### Layer 4: Audit and PKI (audit/, crypto/pki.py)
 
-- [ ] 6.1 hashchain.py (append-only, SQLite triggers block UPDATE/DELETE)
-- [ ] 6.2 merkle.py (root, proofs)
-- [ ] 6.3 daily_root.py (signed daily root)
-- [ ] 6.4 verifier.py (names the exact altered entry)
+- [x] 6.1 hashchain.py (append-only, SQLite triggers block UPDATE/DELETE)
+- [x] 6.2 merkle.py (root, proofs)
+- [x] 6.3 daily_root.py (signed daily root)
+- [x] 6.4 verifier.py (names exact altered entries and validates signed daily roots)
 - [ ] 6.5 pki.py (root CA, certificates, CRL)
 - [ ] 6.6 Revocation wired into login, share submission, downloads
 
@@ -135,10 +136,27 @@ Folders: crypto/, auth/, tracing/, audit/, demo/, web/, tests/, keys/ (git-ignor
 
 ## 6. Known bugs and TODO (EDIT THIS EVERY SESSION)
 
-- None yet.
+- Application startup must call audit.daily_root.configure_audit_signing_keys with the persistent audit Ed25519 keypair before computing daily roots; standalone verification loads the trusted public-key PEM through the CLI.
 
 ## 7. Files changed in the last session
 
+- audit/verifier.py (new) — full-chain, daily Merkle-root, and Ed25519 signature checks with exact affected entry IDs and a CLI
+- tests/test_verifier.py (new) — green verification, edited details/hash detection, and CLI success/failure behavior
+- audit/daily_root.py — public-key-only configuration hook for standalone verification processes
+- audit/daily_root.py (new) — daily Merkle-root computation, Ed25519 signatures, immutable storage, and verification
+- tests/test_daily_root.py (new) — root contents/signature, entry tampering, and root immutability
+- audit/merkle.py (new) — SHA-256 Merkle levels, root retrieval, and directional inclusion proofs
+- tests/test_merkle.py (new) — changed-leaf root sensitivity, valid proofs across tree widths, and tamper cases
+- audit/hashchain.py (new) — append-only SQLite SHA-256 audit chain with append validation and integrity verification
+- tests/test_hashchain.py (new) — valid chain, trigger-blocked mutation/deletion, and verifier tamper detection
+- crypto/shamir.py, crypto/rotation.py, and crypto/services/paper_service.py — sample polynomial coefficients uniformly from the complete field, including zero
+- crypto/services/paper_service.py — persist, sign, and enforce timezone-aware UTC release-window endpoints; migrate prior database schema in place
+- tests/test_shamir.py, tests/test_rotation.py, tests/test_paper_service.py — cover zero coefficients, signed-window enforcement/tampering, invalid windows, and prior-schema migration
+- demo/paper_cli.py — supply an active UTC release window to the paper service
+- demo/paper_cli.py (new) — terminal demonstration of encrypted exam creation, wrapped shares, and successful threshold release
+- tests/test_paper_cli.py (new) — CLI smoke test using isolated temporary database storage
+- crypto/services/paper_service.py (moved from crypto/) — encrypted exam creation, signed metadata, Shamir/Feldman shares, RSA-wrapped storage, and threshold release
+- tests/test_paper_service.py (new) — valid release, tampered-share rejection, and insufficient-share rejection
 - crypto/rotation.py (new) — refreshes shares with a fresh polynomial over the existing field while preserving the secret
 - tests/test_rotation.py (new) — verifies new shares and old/new polynomial invalidation
 - crypto/signing.py (new) — Ed25519 key generation, message signing, and signature verification
@@ -178,12 +196,32 @@ Do not change anything else.
 
 ## 11. Session log (add one line per session)
 
-| Date       | Tool           | What was done                                                                       | Next step                                |
-| ---------- | -------------- | ----------------------------------------------------------------------------------- | ---------------------------------------- |
-| \_\_\_\_   | \_\_\_\_       | Project started                                                                     | Run P1 (skeleton)                        |
-| 2026-10-02 | Claude Code    | Wrote crypto/aes_gcm.py (7 tests) and crypto/shamir.py (7 tests); 14/14 tests pass. | Next step: crypto/feldman.py (3.4)       |
-| 2026-10-02 | GitHub Copilot | Implemented crypto/feldman.py and tests/test_feldman.py; full suite passes 17/17.   | Next step: crypto/kdf.py (3.2)           |
-| 2026-10-02 | GitHub Copilot | Implemented crypto/kdf.py and tests/test_kdf.py; full suite passes 23/23.           | Next step: crypto/keywrap.py (3.5)       |
-| 2026-10-02 | GitHub Copilot | Implemented crypto/keywrap.py and tests/test_keywrap.py; full suite passes 25/25.   | Next step: crypto/signing.py (3.6)       |
-| 2026-10-02 | GitHub Copilot | Implemented crypto/signing.py and tests/test_signing.py; full suite passes 28/28.   | Next step: crypto/rotation.py (3.7)      |
-| 2026-10-02 | GitHub Copilot | Implemented crypto/rotation.py and tests/test_rotation.py; full suite passes 31/31. | Next step: crypto/paper_service.py (3.8) |
+| Date       | Tool           | What was done                                                                                         | Next step                                   |
+| ---------- | -------------- | ----------------------------------------------------------------------------------------------------- | ------------------------------------------- |
+| \_\_\_\_   | \_\_\_\_       | Project started                                                                                       | Run P1 (skeleton)                           |
+| 2026-10-02 | Claude Code    | Wrote crypto/aes_gcm.py (7 tests) and crypto/shamir.py (7 tests); 14/14 tests pass.                   | Next step: crypto/feldman.py (3.4)          |
+| 2026-10-02 | GitHub Copilot | Implemented crypto/feldman.py and tests/test_feldman.py; full suite passes 17/17.                     | Next step: crypto/kdf.py (3.2)              |
+| 2026-10-02 | GitHub Copilot | Implemented crypto/kdf.py and tests/test_kdf.py; full suite passes 23/23.                             | Next step: crypto/keywrap.py (3.5)          |
+| 2026-10-02 | GitHub Copilot | Implemented crypto/keywrap.py and tests/test_keywrap.py; full suite passes 25/25.                     | Next step: crypto/signing.py (3.6)          |
+| 2026-10-02 | GitHub Copilot | Implemented crypto/signing.py and tests/test_signing.py; full suite passes 28/28.                     | Next step: crypto/rotation.py (3.7)         |
+| 2026-10-02 | GitHub Copilot | Implemented crypto/rotation.py and tests/test_rotation.py; full suite passes 31/31.                   | Next step: crypto/paper_service.py (3.8)    |
+| 2026-10-02 | GitHub Copilot | Implemented services/paper_service.py and tests/test_paper_service.py; full suite passes 34/34.       | Next step: add paper-service CLI demo (3.8) |
+| 2026-10-02 | GitHub Copilot | Placed paper service at crypto/services/paper_service.py and aligned the checklist; tests pass 34/34. | Next step: add paper-service CLI demo (3.9) |
+| 2026-10-02 | GitHub Copilot | Closed Layer 1 audit gaps: full-field Shamir sampling and signed/enforced UTC windows; 42/42 pass.    | Next step: audit/hashchain.py (6.1)         |
+| 2026-10-02 | GitHub Copilot | Implemented audit/hashchain.py and tests/test_hashchain.py; full suite passes 48/48.                  | Next step: audit/merkle.py (6.2)            |
+| 2026-10-02 | GitHub Copilot | Implemented audit/merkle.py and tests/test_merkle.py; full suite passes 57/57.                        | Next step: audit/daily_root.py (6.3)        |
+| 2026-10-02 | GitHub Copilot | Implemented audit/daily_root.py and tests/test_daily_root.py; full suite passes 61/61.                | Next step: audit/verifier.py (6.4)          |
+| 2026-10-02 | GitHub Copilot | Implemented audit/verifier.py and tests/test_verifier.py; full suite passes 66/66.                    | Next step: crypto/pki.py (6.5)              |
+| 2026-10-03 | GitHub Copilot | Added requested test-gap coverage; full suite passes 77/77.                                         | Currently working on: auth/passwords.py      |
+
+## Real names in the code (use these in all future prompts)
+
+- Paper service path: crypto/services/paper_service.py (functions create_exam, release_exam)
+- Audit write function: add_audit_entry (not append)
+- Audit table: audit_entries (not audit_log)
+- Verifier result includes first_broken_index plus lists of altered, missing and broken-link entries
+
+## Known limitations
+
+- SQLite triggers can be dropped by someone holding the database file; the hash chain and signed Merkle roots detect this; roots should also be copied outside the server.
+- The audit signing key lives on the server.

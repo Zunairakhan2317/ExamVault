@@ -1,5 +1,8 @@
 """Tests for issuing and validating refreshed Shamir shares."""
 
+import pytest
+
+from crypto.feldman import Q
 from crypto.rotation import rotate_shares, verify_share_validity
 
 
@@ -38,3 +41,21 @@ def test_new_shares_fail_against_old_rotation_state() -> None:
         not verify_share_validity(share, old_state["coefficients"], old_state["prime"])
         for share in new_state["shares"]
     )
+
+
+def test_rotation_samples_coefficients_from_full_field(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Zero is a permitted random polynomial coefficient during rotation."""
+    requested_ranges: list[int] = []
+
+    def sample_zero(upper_bound: int) -> int:
+        requested_ranges.append(upper_bound)
+        return 0
+
+    monkeypatch.setattr("crypto.rotation.secrets.randbelow", sample_zero)
+    state = rotate_shares(old_secret=42, threshold=2, num_shares=3)
+
+    assert requested_ranges == [Q]
+    assert state["coefficients"] == [42, 0]
+    assert state["shares"] == [(1, 42), (2, 42), (3, 42)]
