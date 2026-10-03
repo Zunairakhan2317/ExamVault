@@ -33,11 +33,11 @@ Folders: crypto/, auth/, tracing/, audit/, demo/, web/, tests/, keys/ (git-ignor
 - Date of last update: 2026-10-03
 - Tool used last: GitHub Copilot
 - Current phase: Layer 4 (Audit and PKI)
-- Last completed module: auth/timewindow.py
-- Currently working on: auth/rbac.py, auth/lockout.py, auth/timewindow.py
-- NEXT STEP: auth/rbac.py, auth/lockout.py, auth/timewindow.py
-- Tests passing: 121 / 121
-- Last git commit message: fix: shamir pow inverse, verifier first_broken_index, test gaps, state updated
+- Last completed module: web foundation part 1 (web/db.py, web/app.py, web/audit_log.py, web/user.py)
+- Currently working on: login, 2FA verify and enroll pages, dashboard
+- NEXT STEP: web foundation (db tables, app factory, base template, login and 2FA pages)
+- Tests passing: 155 / 155
+- Last git commit message: layer2: rbac
 
 ## 4. Master checklist
 
@@ -75,8 +75,8 @@ Folders: crypto/, auth/, tracing/, audit/, demo/, web/, tests/, keys/ (git-ignor
 
 - [x] 4.1 passwords.py (Argon2id + policy)
 - [x] 4.2 totp.py (QR enrolment, replay protection)
-- [ ] 4.3 rbac.py (role_required, default deny)
-- [ ] 4.4 lockout.py + Flask-Limiter
+- [x] 4.3 rbac.py (role_required, default deny)
+- [x] 4.4 lockout.py + Flask-Limiter
 - [x] 4.5 timewindow.py (server UTC only)
 - [ ] 4.6 Share submission flow (one-time nonce, Feldman check, release at k shares)
 - [ ] 4.7 schnorr.py (Fiat-Shamir proof of key possession)
@@ -101,7 +101,7 @@ Folders: crypto/, auth/, tracing/, audit/, demo/, web/, tests/, keys/ (git-ignor
 
 ### Web app (web/)
 
-- [ ] base.html with Bootstrap, role-based menu, flash messages
+- [x] base.html with Bootstrap, role-based menu, flash messages
 - [ ] login + 2FA pages, enroll_2fa
 - [ ] Admin pages (users, revoke, rotate, alerts)
 - [ ] Examiner pages (upload, exams, variants)
@@ -109,7 +109,7 @@ Folders: crypto/, auth/, tracing/, audit/, demo/, web/, tests/, keys/ (git-ignor
 - [ ] Auditor pages (log, verify, roots)
 - [ ] Leak Analyzer page
 - [ ] Files page (with honeytoken) and ECB demo page
-- [ ] Security: CSRF, security headers, session settings, upload limits, error pages
+- [x] Security: CSRF, security headers, session settings, upload limits, error pages
 
 ### Final
 
@@ -137,9 +137,16 @@ Folders: crypto/, auth/, tracing/, audit/, demo/, web/, tests/, keys/ (git-ignor
 ## 6. Known bugs and TODO (EDIT THIS EVERY SESSION)
 
 - Application startup must call audit.daily_root.configure_audit_signing_keys with the persistent audit Ed25519 keypair before computing daily roots; standalone verification loads the trusted public-key PEM through the CLI.
+- Web layer must: call lockout.ensure_schema in web/db.py; call is_locked before password verification; write audit entries for failures, lockouts (just_locked) and rate-limit 429s; register a 429 handler; use @limiter.limit(LOGIN_RATE_LIMIT) on the login route.
+- Web layer must register the RBAC denied handler with rbac.set_denied_handler so denials are written through add_audit_entry; it must also redirect 401 responses to /login.
+- Web layer: use web.audit_log.log_event(conn, actor, action, details) for ALL audit writes (it maps to the real add_audit_entry signature and drops secret-looking keys). Login route must call lockout.is_locked before password verification and use @limiter.limit(lockout.LOGIN_RATE_LIMIT) via app.extensions['examvault_limiter'].
 
 ## 7. Files changed in the last session
 
+- auth/rbac.py (new) — role matrix, default-deny route decorator, and safe denied-request audit hook
+- tests/test_rbac.py (new) — Flask-client role, permission-matrix, and denied-hook coverage
+- auth/lockout.py (new) — username failure tracking, time-based lockout, environment-configurable policy, and Flask-Limiter setup
+- tests/test_lockout.py (new) — lockout history, expiry, normalization, SQL safety, configuration, and IP rate-limit coverage
 - auth/timewindow.py (new) — server-UTC parsing, window enforcement, status, and countdown helpers
 - tests/test_timewindow.py (new) — window boundaries, parsing, data representations, errors, countdowns, and summaries
 - auth/passwords.py (new) — Argon2id password hashing, verification, rehash detection, and password policy
@@ -202,25 +209,26 @@ Do not change anything else.
 
 ## 11. Session log (add one line per session)
 
-| Date       | Tool           | What was done                                                                                         | Next step                                         |
-| ---------- | -------------- | ----------------------------------------------------------------------------------------------------- | ------------------------------------------------- |
-| \_\_\_\_   | \_\_\_\_       | Project started                                                                                       | Run P1 (skeleton)                                 |
-| 2026-10-02 | Claude Code    | Wrote crypto/aes_gcm.py (7 tests) and crypto/shamir.py (7 tests); 14/14 tests pass.                   | Next step: crypto/feldman.py (3.4)                |
-| 2026-10-02 | GitHub Copilot | Implemented crypto/feldman.py and tests/test_feldman.py; full suite passes 17/17.                     | Next step: crypto/kdf.py (3.2)                    |
-| 2026-10-02 | GitHub Copilot | Implemented crypto/kdf.py and tests/test_kdf.py; full suite passes 23/23.                             | Next step: crypto/keywrap.py (3.5)                |
-| 2026-10-02 | GitHub Copilot | Implemented crypto/keywrap.py and tests/test_keywrap.py; full suite passes 25/25.                     | Next step: crypto/signing.py (3.6)                |
-| 2026-10-02 | GitHub Copilot | Implemented crypto/signing.py and tests/test_signing.py; full suite passes 28/28.                     | Next step: crypto/rotation.py (3.7)               |
-| 2026-10-02 | GitHub Copilot | Implemented crypto/rotation.py and tests/test_rotation.py; full suite passes 31/31.                   | Next step: crypto/paper_service.py (3.8)          |
-| 2026-10-02 | GitHub Copilot | Implemented services/paper_service.py and tests/test_paper_service.py; full suite passes 34/34.       | Next step: add paper-service CLI demo (3.8)       |
-| 2026-10-02 | GitHub Copilot | Placed paper service at crypto/services/paper_service.py and aligned the checklist; tests pass 34/34. | Next step: add paper-service CLI demo (3.9)       |
-| 2026-10-02 | GitHub Copilot | Closed Layer 1 audit gaps: full-field Shamir sampling and signed/enforced UTC windows; 42/42 pass.    | Next step: audit/hashchain.py (6.1)               |
-| 2026-10-02 | GitHub Copilot | Implemented audit/hashchain.py and tests/test_hashchain.py; full suite passes 48/48.                  | Next step: audit/merkle.py (6.2)                  |
-| 2026-10-02 | GitHub Copilot | Implemented audit/merkle.py and tests/test_merkle.py; full suite passes 57/57.                        | Next step: audit/daily_root.py (6.3)              |
-| 2026-10-02 | GitHub Copilot | Implemented audit/daily_root.py and tests/test_daily_root.py; full suite passes 61/61.                | Next step: audit/verifier.py (6.4)                |
-| 2026-10-02 | GitHub Copilot | Implemented audit/verifier.py and tests/test_verifier.py; full suite passes 66/66.                    | Next step: crypto/pki.py (6.5)                    |
-| 2026-10-03 | GitHub Copilot | Added requested test-gap coverage; full suite passes 77/77.                                           | auth/passwords.py and auth/totp.py (4.1, 4.2)     |
-| 2026-10-03 | GitHub Copilot | Implemented auth/passwords.py and auth/totp.py with tests; full suite passes 111/111.                 | auth/rbac.py, auth/lockout.py, auth/timewindow.py |
-| 2026-10-03 | GitHub Copilot | Implemented auth/timewindow.py and tests/test_timewindow.py; full suite passes 121/121.               | auth/rbac.py, auth/lockout.py                     |
+| Date       | Tool           | What was done                                                                                         | Next step                                                                   |
+| ---------- | -------------- | ----------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| \_\_\_\_   | \_\_\_\_       | Project started                                                                                       | Run P1 (skeleton)                                                           |
+| 2026-10-02 | Claude Code    | Wrote crypto/aes_gcm.py (7 tests) and crypto/shamir.py (7 tests); 14/14 tests pass.                   | Next step: crypto/feldman.py (3.4)                                          |
+| 2026-10-02 | GitHub Copilot | Implemented crypto/feldman.py and tests/test_feldman.py; full suite passes 17/17.                     | Next step: crypto/kdf.py (3.2)                                              |
+| 2026-10-02 | GitHub Copilot | Implemented crypto/kdf.py and tests/test_kdf.py; full suite passes 23/23.                             | Next step: crypto/keywrap.py (3.5)                                          |
+| 2026-10-02 | GitHub Copilot | Implemented crypto/keywrap.py and tests/test_keywrap.py; full suite passes 25/25.                     | Next step: crypto/signing.py (3.6)                                          |
+| 2026-10-02 | GitHub Copilot | Implemented crypto/signing.py and tests/test_signing.py; full suite passes 28/28.                     | Next step: crypto/rotation.py (3.7)                                         |
+| 2026-10-02 | GitHub Copilot | Implemented crypto/rotation.py and tests/test_rotation.py; full suite passes 31/31.                   | Next step: crypto/paper_service.py (3.8)                                    |
+| 2026-10-02 | GitHub Copilot | Implemented services/paper_service.py and tests/test_paper_service.py; full suite passes 34/34.       | Next step: add paper-service CLI demo (3.8)                                 |
+| 2026-10-02 | GitHub Copilot | Placed paper service at crypto/services/paper_service.py and aligned the checklist; tests pass 34/34. | Next step: add paper-service CLI demo (3.9)                                 |
+| 2026-10-02 | GitHub Copilot | Closed Layer 1 audit gaps: full-field Shamir sampling and signed/enforced UTC windows; 42/42 pass.    | Next step: audit/hashchain.py (6.1)                                         |
+| 2026-10-02 | GitHub Copilot | Implemented audit/hashchain.py and tests/test_hashchain.py; full suite passes 48/48.                  | Next step: audit/merkle.py (6.2)                                            |
+| 2026-10-02 | GitHub Copilot | Implemented audit/merkle.py and tests/test_merkle.py; full suite passes 57/57.                        | Next step: audit/daily_root.py (6.3)                                        |
+| 2026-10-02 | GitHub Copilot | Implemented audit/daily_root.py and tests/test_daily_root.py; full suite passes 61/61.                | Next step: audit/verifier.py (6.4)                                          |
+| 2026-10-02 | GitHub Copilot | Implemented audit/verifier.py and tests/test_verifier.py; full suite passes 66/66.                    | Next step: crypto/pki.py (6.5)                                              |
+| 2026-10-03 | GitHub Copilot | Added requested test-gap coverage; full suite passes 77/77.                                           | auth/passwords.py and auth/totp.py (4.1, 4.2)                               |
+| 2026-10-03 | GitHub Copilot | Implemented auth/passwords.py and auth/totp.py with tests; full suite passes 111/111.                 | auth/rbac.py, auth/lockout.py, auth/timewindow.py                           |
+| 2026-10-03 | GitHub Copilot | Implemented auth/timewindow.py and tests/test_timewindow.py; full suite passes 121/121.               | auth/rbac.py, auth/lockout.py                                               |
+| 2026-10-03 | GitHub Copilot | Implemented auth/lockout.py and tests/test_lockout.py; full suite passes 144/144.                     | web foundation (db tables, app factory, base template, login and 2FA pages) |
 
 ## Real names in the code (use these in all future prompts)
 
@@ -229,9 +237,11 @@ Do not change anything else.
 - auth/totp.py (new_secret, provisioning_uri, qr_png_bytes, current_step, verify_code, protect_secret, unprotect_secret)
 - verify_code returns (ok, step); the caller must store step as the user's last_used_step.
 - Window fields are release_window_start / release_window_end; start inclusive, end exclusive.
+- auth/lockout.py (get_threshold, get_lockout_seconds, ensure_schema, normalize_username, is_locked, record_failure, record_success, create_limiter; AccountLockedError; FAILURE_WINDOW_SECONDS, MAX_USERNAME_LENGTH, LOGIN_RATE_LIMIT)
 - Audit write function: add_audit_entry (not append)
 - Audit table: audit_entries (not audit_log)
 - Verifier result includes first_broken_index plus lists of altered, missing and broken-link entries
+- web.app.create_app, web.db.get_db/init_db/get_connection, web.audit_log.log_event, web.user.load_user_by_id, app.config['TOTP_KEY'] (bytes), app.extensions['examvault_limiter'].
 
 ## Known limitations
 
@@ -249,3 +259,15 @@ Do not change anything else.
 7. schnorr.py
 8. demos: honeytoken, ECB vs GCM, redteam
 9. remaining web pages and hardening
+
+## 12. Open items inside already-started layers (do not forget)
+
+- Layer 4: 6.5 pki.py; 6.6 revocation wiring (login, share submission, downloads); audit events from every route
+  (login, failed login, lockout, share submission, refusal, release, copy download, rotation, revocation, honeytoken);
+  Auditor page button to generate the daily signed root.
+- Layer 2: 4.6 share submission flow; 4.7 schnorr.py; 4.8 timelock.py (stretch);
+  login route wiring lockout + passwords (rehash) + totp (store last_used_step, protect_secret) + rbac;
+  log window refusals.
+- Layer 1 wiring: verify the examiner signature before an invigilator downloads a copy; rotation admin page
+  (plan 3.7 says k holders approve, plan 4.3 says rotate is admin only: ask the leader before building).
+- Layer 3: also needs a {A|B} template parser (examiner uploads a text template) before copygen.
