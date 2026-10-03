@@ -17,6 +17,7 @@ from auth import lockout, rbac
 from web.audit_log import log_event
 from web.db import close_db, get_connection, get_db, init_db
 from web.user import load_user_by_id
+from web.routes_auth import register as register_auth_routes
 
 _INTERNAL_KEYS = {"SKIP_DOTENV", "SECRET_KEY", "TOTP_ENCRYPTION_KEY"}
 _ERROR_TEXT = {
@@ -197,6 +198,8 @@ def create_app(config: dict | None = None) -> Flask:
     @app.errorhandler(500)
     def _server_error(_error):
         return _error_page(500)
+
+    register_auth_routes(app)
 
     @app.get("/")
     def index():

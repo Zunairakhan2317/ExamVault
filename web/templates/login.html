@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Login - ExamVault{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-md-5">
+    <div class="text-center mb-4">
+      <h1 class="h3 fw-bold">ExamVault</h1>
+      <p class="text-muted">Secure exam paper system</p>
+    </div>
+    <div class="card shadow-sm">
+      <div class="card-body p-4">
+        <form method="post" action="/login" autocomplete="off">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <div class="mb-3">
+            <label class="form-label" for="username">Username</label>
+            <input class="form-control" id="username" name="username" type="text" maxlength="150" required autofocus>
+          </div>
+          <div class="mb-3">
+            <label class="form-label" for="password">Password</label>
+            <input class="form-control" id="password" name="password" type="password" maxlength="256" required autocomplete="current-password">
+          </div>
+          <button class="btn btn-primary w-100" type="submit">Login</button>
+        </form>
+        <p class="small text-muted mt-3 mb-0">Password bhool gaye? Admin se rabta karo.</p>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

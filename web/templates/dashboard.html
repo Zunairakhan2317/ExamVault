@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Dashboard - ExamVault{% endblock %}
+{% block content %}
+<h1 class="h4">Welcome, {{ current_user.username }}
+  <span class="badge text-bg-secondary">{{ current_user.role }}</span></h1>
+<div class="row mt-4 g-3">
+  {% if current_user.role == 'admin' %}
+    <div class="col-md-4"><div class="card"><div class="card-body">
+      <div class="text-muted">Total users</div><div class="fs-2">{{ stats.users if stats.users is not none else '-' }}</div></div></div></div>
+    <div class="col-md-4"><div class="card"><div class="card-body">
+      <div class="text-muted">Revoked certificates</div><div class="fs-2">{{ stats.revoked if stats.revoked is not none else '-' }}</div></div></div></div>
+    <div class="col-md-4"><div class="card {% if stats.alerts %}border-danger{% endif %}"><div class="card-body">
+      <div class="text-muted">Open alerts</div><div class="fs-2">{{ stats.alerts if stats.alerts is not none else '-' }}</div></div></div></div>
+  {% else %}
+    <div class="col-12"><div class="card"><div class="card-body text-muted">
+      Aap ke role ke pages upar menu me hain. Exam ka data aate hi yahan dikhega.</div></div></div>
+  {% endif %}
+</div>
+{% endblock %}
