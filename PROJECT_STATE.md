@@ -34,21 +34,21 @@ Folders: crypto/, auth/, tracing/, audit/, demo/, web/, tests/, keys/ (git-ignor
 - Tool used last: GitHub Copilot
 - Current phase: Layer 4 (Audit and PKI)
 - Last completed module: audit/verifier.py (Layer 4.4)
-- Currently working on: auth/passwords.py
-- NEXT STEP: crypto/pki.py (6.5)
+- Currently working on: auth/passwords.py and auth/totp.py (4.1, 4.2)
+- NEXT STEP: auth/passwords.py and auth/totp.py, then auth/rbac.py, auth/lockout.py, auth/timewindow.py
 - Tests passing: 77 / 77
-- Last git commit message: Updates
+- Last git commit message: fix: shamir pow inverse, verifier first_broken_index, test gaps, state updated
 
 ## 4. Master checklist
 
 ### Phase 0: Setup
 
-- [ ] Virtual environment created, requirements.txt saved
-- [ ] Folder structure and empty files created
-- [ ] .gitignore in place BEFORE first commit
-- [ ] web/db.py creates all tables
-- [ ] `python run.py` shows hello page at localhost:5000
-- [ ] `pytest` runs
+- [x] Virtual environment created, requirements.txt saved
+- [x] Folder structure and empty files created
+- [x] .gitignore in place BEFORE first commit
+- [x] web/db.py creates all tables
+- [x] `python run.py` shows hello page at localhost:5000
+- [x] `pytest` runs
 
 ### Layer 1: Cryptographic core (crypto/)
 
@@ -125,7 +125,7 @@ Folders: crypto/, auth/, tracing/, audit/, demo/, web/, tests/, keys/ (git-ignor
 - Shamir and Feldman share the same group: RFC 3526 group 14 prime p, q=(p-1)/2, g=4. Shares are mod q.
 - Shares are stored only as hybrid-wrapped blobs (AES-GCM key wrapped by holder's RSA-3072 OAEP SHA-256).
 - Signatures: Ed25519 over SHA-256(paper) + exam id + window times.
-- Passwords: Argon2id. 2FA: TOTP with valid_window=1 and last-used-step replay protection.
+- Passwords: Argon2id. 2FA: TOTP accepting the previous, current and next 30-second step, with last-used-step replay protection (verify_code returns (ok, step); the caller stores step).
 - Lockout: 5 failures, 15 minutes. Rate limit: 5 login attempts per minute per IP.
 - Time window uses the server UTC clock only.
 - Fingerprinting: wording variants; start with unique patterns (min Hamming distance), then Tardos on 40+ binary slots.
@@ -196,23 +196,23 @@ Do not change anything else.
 
 ## 11. Session log (add one line per session)
 
-| Date       | Tool           | What was done                                                                                         | Next step                                   |
-| ---------- | -------------- | ----------------------------------------------------------------------------------------------------- | ------------------------------------------- |
-| \_\_\_\_   | \_\_\_\_       | Project started                                                                                       | Run P1 (skeleton)                           |
-| 2026-10-02 | Claude Code    | Wrote crypto/aes_gcm.py (7 tests) and crypto/shamir.py (7 tests); 14/14 tests pass.                   | Next step: crypto/feldman.py (3.4)          |
-| 2026-10-02 | GitHub Copilot | Implemented crypto/feldman.py and tests/test_feldman.py; full suite passes 17/17.                     | Next step: crypto/kdf.py (3.2)              |
-| 2026-10-02 | GitHub Copilot | Implemented crypto/kdf.py and tests/test_kdf.py; full suite passes 23/23.                             | Next step: crypto/keywrap.py (3.5)          |
-| 2026-10-02 | GitHub Copilot | Implemented crypto/keywrap.py and tests/test_keywrap.py; full suite passes 25/25.                     | Next step: crypto/signing.py (3.6)          |
-| 2026-10-02 | GitHub Copilot | Implemented crypto/signing.py and tests/test_signing.py; full suite passes 28/28.                     | Next step: crypto/rotation.py (3.7)         |
-| 2026-10-02 | GitHub Copilot | Implemented crypto/rotation.py and tests/test_rotation.py; full suite passes 31/31.                   | Next step: crypto/paper_service.py (3.8)    |
-| 2026-10-02 | GitHub Copilot | Implemented services/paper_service.py and tests/test_paper_service.py; full suite passes 34/34.       | Next step: add paper-service CLI demo (3.8) |
-| 2026-10-02 | GitHub Copilot | Placed paper service at crypto/services/paper_service.py and aligned the checklist; tests pass 34/34. | Next step: add paper-service CLI demo (3.9) |
-| 2026-10-02 | GitHub Copilot | Closed Layer 1 audit gaps: full-field Shamir sampling and signed/enforced UTC windows; 42/42 pass.    | Next step: audit/hashchain.py (6.1)         |
-| 2026-10-02 | GitHub Copilot | Implemented audit/hashchain.py and tests/test_hashchain.py; full suite passes 48/48.                  | Next step: audit/merkle.py (6.2)            |
-| 2026-10-02 | GitHub Copilot | Implemented audit/merkle.py and tests/test_merkle.py; full suite passes 57/57.                        | Next step: audit/daily_root.py (6.3)        |
-| 2026-10-02 | GitHub Copilot | Implemented audit/daily_root.py and tests/test_daily_root.py; full suite passes 61/61.                | Next step: audit/verifier.py (6.4)          |
-| 2026-10-02 | GitHub Copilot | Implemented audit/verifier.py and tests/test_verifier.py; full suite passes 66/66.                    | Next step: crypto/pki.py (6.5)              |
-| 2026-10-03 | GitHub Copilot | Added requested test-gap coverage; full suite passes 77/77.                                         | Currently working on: auth/passwords.py      |
+| Date       | Tool           | What was done                                                                                         | Next step                                     |
+| ---------- | -------------- | ----------------------------------------------------------------------------------------------------- | --------------------------------------------- |
+| \_\_\_\_   | \_\_\_\_       | Project started                                                                                       | Run P1 (skeleton)                             |
+| 2026-10-02 | Claude Code    | Wrote crypto/aes_gcm.py (7 tests) and crypto/shamir.py (7 tests); 14/14 tests pass.                   | Next step: crypto/feldman.py (3.4)            |
+| 2026-10-02 | GitHub Copilot | Implemented crypto/feldman.py and tests/test_feldman.py; full suite passes 17/17.                     | Next step: crypto/kdf.py (3.2)                |
+| 2026-10-02 | GitHub Copilot | Implemented crypto/kdf.py and tests/test_kdf.py; full suite passes 23/23.                             | Next step: crypto/keywrap.py (3.5)            |
+| 2026-10-02 | GitHub Copilot | Implemented crypto/keywrap.py and tests/test_keywrap.py; full suite passes 25/25.                     | Next step: crypto/signing.py (3.6)            |
+| 2026-10-02 | GitHub Copilot | Implemented crypto/signing.py and tests/test_signing.py; full suite passes 28/28.                     | Next step: crypto/rotation.py (3.7)           |
+| 2026-10-02 | GitHub Copilot | Implemented crypto/rotation.py and tests/test_rotation.py; full suite passes 31/31.                   | Next step: crypto/paper_service.py (3.8)      |
+| 2026-10-02 | GitHub Copilot | Implemented services/paper_service.py and tests/test_paper_service.py; full suite passes 34/34.       | Next step: add paper-service CLI demo (3.8)   |
+| 2026-10-02 | GitHub Copilot | Placed paper service at crypto/services/paper_service.py and aligned the checklist; tests pass 34/34. | Next step: add paper-service CLI demo (3.9)   |
+| 2026-10-02 | GitHub Copilot | Closed Layer 1 audit gaps: full-field Shamir sampling and signed/enforced UTC windows; 42/42 pass.    | Next step: audit/hashchain.py (6.1)           |
+| 2026-10-02 | GitHub Copilot | Implemented audit/hashchain.py and tests/test_hashchain.py; full suite passes 48/48.                  | Next step: audit/merkle.py (6.2)              |
+| 2026-10-02 | GitHub Copilot | Implemented audit/merkle.py and tests/test_merkle.py; full suite passes 57/57.                        | Next step: audit/daily_root.py (6.3)          |
+| 2026-10-02 | GitHub Copilot | Implemented audit/daily_root.py and tests/test_daily_root.py; full suite passes 61/61.                | Next step: audit/verifier.py (6.4)            |
+| 2026-10-02 | GitHub Copilot | Implemented audit/verifier.py and tests/test_verifier.py; full suite passes 66/66.                    | Next step: crypto/pki.py (6.5)                |
+| 2026-10-03 | GitHub Copilot | Added requested test-gap coverage; full suite passes 77/77.                                           | auth/passwords.py and auth/totp.py (4.1, 4.2) |
 
 ## Real names in the code (use these in all future prompts)
 
@@ -225,3 +225,15 @@ Do not change anything else.
 
 - SQLite triggers can be dropped by someone holding the database file; the hash chain and signed Merkle roots detect this; roots should also be copied outside the server.
 - The audit signing key lives on the server.
+
+## Build order from here
+
+1. auth/passwords.py + totp.py
+2. auth/rbac.py + lockout.py + timewindow.py
+3. web foundation (db tables, app factory calling configure_audit_signing_keys at startup, base template, login and 2FA pages)
+4. share submission flow 4.6
+5. Layer 3 tracing modules
+6. crypto/pki.py + revocation wiring 6.6 + rotation admin screen
+7. schnorr.py
+8. demos: honeytoken, ECB vs GCM, redteam
+9. remaining web pages and hardening
