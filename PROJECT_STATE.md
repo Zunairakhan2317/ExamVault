@@ -33,10 +33,10 @@ Folders: crypto/, auth/, tracing/, audit/, demo/, web/, tests/, keys/ (git-ignor
 - Date of last update: 2026-10-03
 - Tool used last: GitHub Copilot
 - Current phase: Layer 4 (Audit and PKI)
-- Last completed module: auth/totp.py
+- Last completed module: auth/timewindow.py
 - Currently working on: auth/rbac.py, auth/lockout.py, auth/timewindow.py
 - NEXT STEP: auth/rbac.py, auth/lockout.py, auth/timewindow.py
-- Tests passing: 111 / 111
+- Tests passing: 121 / 121
 - Last git commit message: fix: shamir pow inverse, verifier first_broken_index, test gaps, state updated
 
 ## 4. Master checklist
@@ -77,7 +77,7 @@ Folders: crypto/, auth/, tracing/, audit/, demo/, web/, tests/, keys/ (git-ignor
 - [x] 4.2 totp.py (QR enrolment, replay protection)
 - [ ] 4.3 rbac.py (role_required, default deny)
 - [ ] 4.4 lockout.py + Flask-Limiter
-- [ ] 4.5 timewindow.py (server UTC only)
+- [x] 4.5 timewindow.py (server UTC only)
 - [ ] 4.6 Share submission flow (one-time nonce, Feldman check, release at k shares)
 - [ ] 4.7 schnorr.py (Fiat-Shamir proof of key possession)
 - [ ] 4.8 timelock.py (STRETCH, do last)
@@ -140,6 +140,8 @@ Folders: crypto/, auth/, tracing/, audit/, demo/, web/, tests/, keys/ (git-ignor
 
 ## 7. Files changed in the last session
 
+- auth/timewindow.py (new) — server-UTC parsing, window enforcement, status, and countdown helpers
+- tests/test_timewindow.py (new) — window boundaries, parsing, data representations, errors, countdowns, and summaries
 - auth/passwords.py (new) — Argon2id password hashing, verification, rehash detection, and password policy
 - auth/totp.py (new) — TOTP provisioning, replay-resistant code verification, QR rendering, and AES-GCM secret protection
 - tests/test_passwords.py (new) — password hashing, verification, policy, and rehash coverage
@@ -218,10 +220,15 @@ Do not change anything else.
 | 2026-10-02 | GitHub Copilot | Implemented audit/verifier.py and tests/test_verifier.py; full suite passes 66/66.                    | Next step: crypto/pki.py (6.5)                    |
 | 2026-10-03 | GitHub Copilot | Added requested test-gap coverage; full suite passes 77/77.                                           | auth/passwords.py and auth/totp.py (4.1, 4.2)     |
 | 2026-10-03 | GitHub Copilot | Implemented auth/passwords.py and auth/totp.py with tests; full suite passes 111/111.                 | auth/rbac.py, auth/lockout.py, auth/timewindow.py |
+| 2026-10-03 | GitHub Copilot | Implemented auth/timewindow.py and tests/test_timewindow.py; full suite passes 121/121.               | auth/rbac.py, auth/lockout.py                     |
 
 ## Real names in the code (use these in all future prompts)
 
 - Paper service path: crypto/services/paper_service.py (functions create_exam, release_exam)
+- auth/passwords.py (hash_password, verify_password, needs_rehash, check_policy)
+- auth/totp.py (new_secret, provisioning_uri, qr_png_bytes, current_step, verify_code, protect_secret, unprotect_secret)
+- verify_code returns (ok, step); the caller must store step as the user's last_used_step.
+- Window fields are release_window_start / release_window_end; start inclusive, end exclusive.
 - Audit write function: add_audit_entry (not append)
 - Audit table: audit_entries (not audit_log)
 - Verifier result includes first_broken_index plus lists of altered, missing and broken-link entries
