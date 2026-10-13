@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}Add User - Admin - ExamVault{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-md-8">
+    <h1 class="h3 mb-4">Add New User</h1>
+
+    {% if created_user %}
+    <div class="alert alert-success">
+      <h5>User created successfully!</h5>
+      <p class="mb-2"><strong>Username:</strong> {{ created_user.username }}</p>
+      <p class="mb-2"><strong>Temporary password:</strong> <code>{{ created_user.password }}</code></p>
+      <p class="mb-0 small text-muted">Share this password securely.</p>
+    </div>
+
+    {% if created_user.key_token %}
+    <div class="alert alert-warning">
+      <h5>RSA Private Key for {{ created_user.username }} (invigilator)</h5>
+      <p class="mb-2">This private key is available <strong>ONLY ONCE</strong>. Server isay save nahi karta. User ko safe tareeqe se do.</p>
+      <p class="mb-2">The public key has been saved to <code>keys/{{ created_user.username }}_public.pem</code>.</p>
+      <form method="get" action="{{ url_for('download_private_key', token=created_user.key_token) }}" class="d-inline">
+        <button class="btn btn-primary" type="submit">Download private key file</button>
+      </form>
+    </div>
+    {% endif %}
+
+    <a class="btn btn-secondary mt-3" href="{{ url_for('admin_users') }}">Back to users</a>
+    {% else %}
+    <form method="post" action="{{ url_for('admin_users_new') }}" class="card shadow-sm p-4" autocomplete="off">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+      <div class="mb-3">
+        <label class="form-label" for="full_name">Full name <span class="text-danger">*</span></label>
+        <input class="form-control" id="full_name" name="full_name" type="text" maxlength="200" required
+               value="{{ request.form.full_name if request.method == 'POST' else '' }}">
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label" for="username">Username <span class="text-danger">*</span></label>
+        <input class="form-control" id="username" name="username" type="text" maxlength="32" required
+               pattern="[a-z0-9][a-z0-9_.\-]{2,31}" title="3 to 32 characters: lowercase letters, digits, dot, dash, underscore"
+               value="{{ request.form.username if request.method == 'POST' else '' }}">
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label" for="email">Email <span class="text-danger">*</span></label>
+        <input class="form-control" id="email" name="email" type="email" maxlength="254" required
+               value="{{ request.form.email if request.method == 'POST' else '' }}">
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label" for="role">Role <span class="text-danger">*</span></label>
+        <select class="form-select" id="role" name="role" required>
+          <option value="">Select role</option>
+          {% for r in roles %}
+          <option value="{{ r }}" {% if request.form.role == r %}selected{% endif %}>{{ r|capitalize }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label">Password <span class="text-danger">*</span></label>
+        <div class="d-flex align-items-center gap-2">
+          <input class="form-control" id="password" name="password" type="password" maxlength="256"
+                 autocomplete="new-password">
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" id="generate_password" name="generate_password"
+                   {% if request.form.generate_password %}checked{% endif %}>
+            <label class="form-check-label small" for="generate_password">Generate</label>
+          </div>
+        </div>
+        <div class="form-text">Min 12 characters. If "Generate" is checked, a secure random password is created.</div>
+      </div>
+
+      <button class="btn btn-primary" type="submit">Create user</button>
+      <a class="btn btn-secondary ms-2" href="{{ url_for('admin_users') }}">Cancel</a>
+    </form>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

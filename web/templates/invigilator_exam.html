@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Exam {{ view.exam_id }} - ExamVault{% endblock %}
+{% block content %}
+<h1 class="h4">Exam <code>{{ view.exam_id }}</code>
+  <span class="badge text-bg-{{ view.badge }}">{{ view.label }}</span></h1>
+<p class="text-muted">Window (UTC): {{ view.start_utc }} to {{ view.end_utc }}</p>
+
+<div class="card shadow-sm mb-3">
+  <div class="card-body text-center">
+    <div class="text-muted">
+      {% if view.status == 'before' %}Window opens in
+      {% elif view.status == 'open' %}Window is open. Closes in
+      {% else %}Window closed{% endif %}
+    </div>
+    <div class="display-4" id="countdown" data-status="{{ view.status }}"
+         data-until-open="{{ view.seconds_until_open }}" data-until-close="{{ view.seconds_until_close }}">
+      {% if view.status == 'closed' %}00 : 00 : 00{% else %}-- : -- : --{% endif %}
+    </div>
+  </div>
+</div>
+
+{% if view.status == 'closed' and not view.released %}
+<div class="alert alert-danger">Window closed. Submissions are refused now.</div>
+{% endif %}
+
+<ol class="list-group list-group-numbered mb-3">
+  {% for n, text in view.steps %}
+  <li class="list-group-item {% if n < view.step %}list-group-item-success{% elif n == view.step %}active{% else %}text-muted{% endif %}">{{ text }}</li>
+  {% endfor %}
+</ol>
+
+<div class="mb-3">
+  <label class="form-label" for="received">Shares received: {{ view.received }} of {{ view.threshold }} needed</label>
+  <progress id="received" class="w-100" max="{{ view.threshold }}" value="{{ view.received }}"></progress>
+</div>
+
+{% if view.status == 'open' and not view.submitted and not view.released %}
+  <a class="btn btn-primary" href="/invigilator/submit-share/{{ view.exam_id }}">Submit key share</a>
+{% else %}
+  <button class="btn btn-primary" type="button" disabled title="{{ view.submit_hint }}">Submit key share</button>
+{% endif %}
+{% if view.released %}
+  <a class="btn btn-success ms-2" href="/invigilator/copy/{{ view.exam_id }}">Download your copy</a>
+{% endif %}
+<script src="/static/countdown.js"></script>
+{% endblock %}

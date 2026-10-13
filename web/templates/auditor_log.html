@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}Audit log - ExamVault{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1 class="h4 mb-0">Audit log <span class="text-muted fs-6">({{ total }} entries)</span></h1>
+  <span>
+    <a class="btn btn-primary btn-sm" href="/auditor/verify">Verify log now</a>
+    <a class="btn btn-outline-secondary btn-sm" href="/auditor/log/export.csv{% if fargs %}?{{ fargs|urlencode }}{% endif %}">Export CSV</a>
+  </span>
+</div>
+
+<form method="get" action="/auditor/log" class="card card-body mb-3">
+  <div class="row g-2">
+    <div class="col-md-2"><label class="form-label small" for="date_from">From (UTC)</label>
+      <input class="form-control form-control-sm" id="date_from" name="date_from" type="date" value="{{ filters.date_from }}"></div>
+    <div class="col-md-2"><label class="form-label small" for="date_to">To (UTC)</label>
+      <input class="form-control form-control-sm" id="date_to" name="date_to" type="date" value="{{ filters.date_to }}"></div>
+    <div class="col-md-2"><label class="form-label small" for="actor">Actor</label>
+      <select class="form-select form-select-sm" id="actor" name="actor">
+        <option value="">All</option>
+        {% for a in actors %}<option value="{{ a }}" {% if filters.actor == a %}selected{% endif %}>{{ a }}</option>{% endfor %}
+      </select></div>
+    <div class="col-md-2"><label class="form-label small" for="action">Action</label>
+      <select class="form-select form-select-sm" id="action" name="action">
+        <option value="">All</option>
+        {% for a in actions %}<option value="{{ a }}" {% if filters.action == a %}selected{% endif %}>{{ a }}</option>{% endfor %}
+      </select></div>
+    <div class="col-md-2"><label class="form-label small" for="severity">Severity</label>
+      <select class="form-select form-select-sm" id="severity" name="severity">
+        <option value="">All</option>
+        {% for s in ['critical', 'warning', 'info'] %}<option value="{{ s }}" {% if filters.severity == s %}selected{% endif %}>{{ s|capitalize }}</option>{% endfor %}
+      </select></div>
+    <div class="col-md-2"><label class="form-label small" for="q">Search</label>
+      <input class="form-control form-control-sm" id="q" name="q" type="text" maxlength="100" value="{{ filters.q }}"></div>
+  </div>
+  <div class="mt-2"><button class="btn btn-primary btn-sm" type="submit">Filter</button>
+    <a class="btn btn-link btn-sm" href="/auditor/log">Reset</a></div>
+</form>
+
+{% if entries %}
+<div class="table-responsive">
+<table class="table table-sm table-hover align-middle bg-white">
+  <thead class="table-light"><tr>
+    <th>#</th><th>Time (UTC)</th><th>Actor</th><th>Action</th><th>Details</th><th>Hash</th></tr></thead>
+  <tbody>
+  {% for e in entries %}
+  <tr class="{% if e.severity == 'critical' %}table-danger{% elif e.severity == 'warning' %}table-warning{% endif %}">
+    <td>{{ e.id }}</td>
+    <td class="text-nowrap">{{ e.timestamp }}</td>
+    <td>{{ e.actor }}</td>
+    <td>{{ e.event_type }}
+      {% if e.severity == 'critical' %}<span class="badge text-bg-danger">Critical</span>
+      {% elif e.severity == 'warning' %}<span class="badge text-bg-warning">Warning</span>{% endif %}</td>
+    <td><small>{{ e.short }}</small></td>
+    <td><details><summary><code>{{ e.entry_hash[:10] }}</code></summary>
+      <div class="small text-break">hash: {{ e.entry_hash }}<br>previous: {{ e.prev_hash }}</div></details></td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+<nav class="d-flex justify-content-between">
+  <span>{% if page > 1 %}<a href="{{ url_for('auditor_log', page=page-1, **fargs) }}">&laquo; Newer</a>{% endif %}</span>
+  <span class="text-muted">Page {{ page }} of {{ total_pages }}</span>
+  <span>{% if page < total_pages %}<a href="{{ url_for('auditor_log', page=page+1, **fargs) }}">Older &raquo;</a>{% endif %}</span>
+</nav>
+{% else %}
+<div class="alert alert-info">No log entries.</div>
+{% endif %}
+{% endblock %}

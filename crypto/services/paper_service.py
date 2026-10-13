@@ -37,6 +37,7 @@ class ExamCreationResult(TypedDict):
     commitments: list[int]
     wrapped_shares: list[bytes]
     signature: bytes
+    paper_hash: bytes
 
 
 def _connect_database() -> sqlite3.Connection:
@@ -54,7 +55,8 @@ def _connect_database() -> sqlite3.Connection:
             release_window_start TEXT NOT NULL DEFAULT '',
             release_window_end TEXT NOT NULL DEFAULT '',
             commitments TEXT NOT NULL,
-            signature BLOB NOT NULL
+            signature BLOB NOT NULL,
+            is_active INTEGER NOT NULL DEFAULT 1
         )"""
     )
     existing_columns = {
@@ -67,6 +69,18 @@ def _connect_database() -> sqlite3.Connection:
     if "release_window_end" not in existing_columns:
         connection.execute(
             "ALTER TABLE exams ADD COLUMN release_window_end TEXT NOT NULL DEFAULT ''"
+        )
+    if "exam_title" not in existing_columns:
+        connection.execute(
+            "ALTER TABLE exams ADD COLUMN exam_title TEXT NOT NULL DEFAULT ''"
+        )
+    if "subject" not in existing_columns:
+        connection.execute(
+            "ALTER TABLE exams ADD COLUMN subject TEXT NOT NULL DEFAULT ''"
+        )
+    if "is_active" not in existing_columns:
+        connection.execute(
+            "ALTER TABLE exams ADD COLUMN is_active INTEGER NOT NULL DEFAULT 1"
         )
     connection.execute(
         """CREATE TABLE IF NOT EXISTS exam_shares (
@@ -140,6 +154,9 @@ def create_exam(
     admin_private_key: ed25519.Ed25519PrivateKey,
     release_window_start: datetime,
     release_window_end: datetime,
+    exam_title: str = "",
+    subject: str = "",
+    threshold: int | None = None,
 ) -> ExamCreationResult:
     """Encrypt and share a paper, signing its identity and UTC release window."""
     if not isinstance(paper_content, bytes):
@@ -156,7 +173,14 @@ def create_exam(
         raise ValueError("release_window_start must precede release_window_end")
 
     num_holders = len(holders)
-    threshold = num_holders // 2 + 1
+    if threshold is None:
+        threshold = num_holders // 2 + 1
+    elif not isinstance(threshold, int) or isinstance(threshold, bool):
+        raise TypeError("threshold must be an integer")
+    elif threshold > num_holders:
+        raise ValueError("k cannot be greater than n")
+    elif threshold < 2:
+        raise ValueError("k must be at least 2")
     exam_id = str(uuid.uuid4())
     master_secret = generate_master_secret()
     coefficients = [master_secret]
@@ -193,8 +217,8 @@ def create_exam(
                 """INSERT INTO exams (
                     exam_id, nonce, ciphertext, paper_hash, threshold,
                     num_holders, release_window_start, release_window_end,
-                    commitments, signature
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    commitments, signature, exam_title, subject, is_active
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     exam_id,
                     nonce,
@@ -206,6 +230,9 @@ def create_exam(
                     window_end,
                     json.dumps([str(value) for value in commitments]),
                     signature,
+                    exam_title,
+                    subject,
+                    1,
                 ),
             )
             connection.executemany(
@@ -225,7 +252,32 @@ def create_exam(
         "commitments": commitments,
         "wrapped_shares": wrapped_shares,
         "signature": signature,
+        "paper_hash": paper_hash,
     }
+
+
+def verify_exam_record(exam_id: str, admin_public_key: ed25519.Ed25519PublicKey) -> bool:
+    """Check the examiner's signature over an exam record WITHOUT decrypting anything."""
+    if not isinstance(exam_id, str) or not isinstance(admin_public_key, ed25519.Ed25519PublicKey):
+        return False
+    with closing(_connect_database()) as connection:
+        record = connection.execute(
+            """SELECT nonce, ciphertext, paper_hash, threshold, num_holders,
+                      release_window_start, release_window_end, commitments, signature
+               FROM exams WHERE exam_id = ?""",
+            (exam_id,),
+        ).fetchone()
+    if record is None:
+        return False
+    nonce, ciphertext, paper_hash, threshold, num_holders, start, end, commitments_json, signature = record
+    try:
+        commitments = [int(value) for value in json.loads(commitments_json)]
+        payload = _signature_payload(
+            exam_id, nonce, ciphertext, paper_hash, threshold, num_holders, start, end, commitments
+        )
+        return bool(verify_signature(admin_public_key, payload, signature))
+    except (ValueError, TypeError):
+        return False
 
 
 def release_exam(
@@ -247,7 +299,8 @@ def release_exam(
     with closing(_connect_database()) as connection:
         record = connection.execute(
             """SELECT nonce, ciphertext, paper_hash, threshold, num_holders,
-                      release_window_start, release_window_end, commitments, signature
+                      release_window_start, release_window_end, commitments, signature,
+                      exam_title, subject
                FROM exams WHERE exam_id = ?""",
             (exam_id,),
         ).fetchone()
@@ -268,6 +321,8 @@ def release_exam(
         window_end,
         commitments_json,
         signature,
+        exam_title,
+        subject,
     ) = record
     commitments = [int(value) for value in json.loads(commitments_json)]
     payload = _signature_payload(

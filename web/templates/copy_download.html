@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Your copy - ExamVault{% endblock %}
+{% block content %}
+<h1 class="h4">Your copy for <code>{{ view.exam_id }}</code></h1>
+{% if view.released %}
+  <div class="alert alert-success">Paper released
+    <span class="badge text-bg-success ms-2">Examiner signature: valid</span></div>
+  {% if copy and copy.ready %}
+  <div class="card shadow-sm mb-3">
+    <div class="card-header">Your copy</div>
+    <div class="card-body">
+      <dl class="row mb-3">
+        <dt class="col-sm-3">Copy ID</dt><dd class="col-sm-9"><code>{{ copy.id }}</code></dd>
+        <dt class="col-sm-3">File name</dt><dd class="col-sm-9">{{ copy.file_name }}</dd>
+      </dl>
+      <a class="btn btn-primary btn-lg" href="{{ url_for('invigilator_copy_download', exam_id=view.exam_id) }}">Download PDF</a>
+    </div>
+  </div>
+  <div class="alert alert-warning">Ye copy aap ke naam se mark hai. Isay share ya leak karna traceable hai.</div>
+  <div class="card shadow-sm mb-3">
+    <div class="card-header">Download history</div>
+    {% if history %}
+    <ul class="list-group list-group-flush">
+      {% for when in history %}<li class="list-group-item small">{{ when }}</li>{% endfor %}
+    </ul>
+    {% else %}<div class="card-body text-muted">No downloads yet.</div>{% endif %}
+  </div>
+  {% else %}
+  <div class="alert alert-info">Your copy is not ready yet. Please contact the examiner.</div>
+  {% endif %}
+{% else %}
+  <div class="alert alert-info">Not available yet. Wait for the paper to be released.</div>
+{% endif %}
+<a href="/invigilator/exam/{{ view.exam_id }}">Back to exam</a>
+{% endblock %}

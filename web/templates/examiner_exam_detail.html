@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% block title %}Exam detail - ExamVault{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1 class="h3 mb-0">{{ exam.exam_title or '(untitled)' }}
+    {% if exam.get('is_active', 1) == False or exam.get('deactivated', False) %}
+    <span class="badge text-bg-secondary">Deactivated</span>
+    {% else %}
+    <span class="badge text-bg-{{ status_badge }}">{{ status_label }}</span>
+    {% endif %}
+  </h1>
+  <div>
+    <a class="btn btn-outline-secondary" href="{{ url_for('tracing_analyze', exam_id=exam.exam_id) }}">Open Leak Analyzer</a>
+    {% if exam.get('is_active', 1) != False and not exam.get('deactivated', False) %}
+    <form method="post" action="{{ url_for('examiner_toggle_exam', exam_id=exam.exam_id) }}" style="display:inline;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit" class="btn btn-outline-danger" onclick="return confirm('Are you sure you want to deactivate this exam? This will hide it from active lists but keep all history intact.')">Deactivate</button>
+    </form>
+    {% else %}
+    <form method="post" action="{{ url_for('examiner_toggle_exam', exam_id=exam.exam_id) }}" style="display:inline;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit" class="btn btn-outline-success" onclick="return confirm('Are you sure you want to activate this exam? This will make it appear in active lists again.')">Activate</button>
+    </form>
+    {% endif %}
+  </div>
+</div>
+
+{% if released_at %}
+<div class="alert alert-success">Paper released at {{ released_at }}</div>
+{% elif view.status == 'before' %}
+<div class="alert alert-info">Waiting for window to open</div>
+{% endif %}
+
+{% if exam.get('is_active', 1) == False or exam.get('deactivated', False) %}
+<div class="alert alert-warning">This exam has been deactivated. It is hidden from active lists but all audit trails, signatures, and history remain intact.</div>
+{% endif %}
+
+<div class="card mb-3"><div class="card-header">Exam info</div><div class="card-body">
+  <dl class="row mb-0">
+    <dt class="col-sm-3">Exam ID</dt><dd class="col-sm-9"><code>{{ exam.exam_id }}</code></dd>
+    <dt class="col-sm-3">Subject</dt><dd class="col-sm-9">{{ exam.subject }}</dd>
+    <dt class="col-sm-3">Paper hash</dt><dd class="col-sm-9"><code>{{ exam.paper_hash[:16] }}</code></dd>
+    <dt class="col-sm-3">Signature</dt>
+    <dd class="col-sm-9">
+      {% if signature_ok is none %}<span class="text-muted">Signature not checked (examiner public key not available)</span>
+      {% elif signature_ok %}<span class="text-success">&#10003; Signature verified</span>
+      {% else %}<span class="text-danger">&#10007; Signature invalid</span>{% endif %}
+    </dd>
+    <dt class="col-sm-3">Window (UTC)</dt><dd class="col-sm-9">{{ view.start_utc }} to {{ view.end_utc }}</dd>
+    <dt class="col-sm-3">k-of-n</dt><dd class="col-sm-9">{{ exam.threshold }} of {{ exam.num_holders }}</dd>
+  </dl>
+</div></div>
+
+<div class="row">
+  <div class="col-md-6">
+    <div class="card mb-3"><div class="card-header">Holders</div>
+      {% if holders %}
+      <table class="table table-sm mb-0">
+        <thead class="table-light"><tr><th>Name</th><th>Share submitted</th><th>Time</th></tr></thead>
+        <tbody>
+          {% for h in holders %}
+          <tr><td>{{ h.username }}</td><td>{{ 'Yes' if h.submitted else 'No' }}</td><td class="small">{{ h.time or '-' }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}<div class="card-body text-muted">No holders yet.</div>{% endif %}
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="card mb-3"><div class="card-header">Copies</div>
+      {% if copies %}
+      <table class="table table-sm mb-0">
+        <thead class="table-light"><tr><th>Invigilator</th><th>Copy issued</th><th>Downloaded at</th></tr></thead>
+        <tbody>
+          {% for c in copies %}<tr><td>{{ c.username }}</td><td>{{ 'Yes' if c.issued else 'No' }}</td><td class="small">{{ c.downloaded_at or '-' }}</td></tr>{% endfor %}
+        </tbody>
+      </table>
+      {% else %}<div class="card-body text-muted">No copies issued yet.</div>{% endif %}
+    </div>
+  </div>
+</div>
+
+<div class="card mb-3"><div class="card-header">Recent events</div>
+  {% if events %}
+  <ul class="list-group list-group-flush">
+    {% for e in events %}
+    <li class="list-group-item small">{{ e.timestamp }} &middot; {{ e.event_type }} &middot; {{ e.actor }}</li>
+    {% endfor %}
+  </ul>
+  {% else %}<div class="card-body text-muted">No log entries</div>{% endif %}
+</div>
+<a class="btn btn-outline-secondary" href="{{ url_for('examiner_exams') }}">Back to my exams</a>
+{% endblock %}

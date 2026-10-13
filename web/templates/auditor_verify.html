@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Log verification - ExamVault{% endblock %}
+{% block content %}
+<h1 class="h4">Log verification</h1>
+<div class="alert alert-{{ headline.level }} fs-5">
+  {% if headline.level == 'success' %}Log intact. {{ entries }} entries checked.{% else %}{{ headline.title }}{% endif %}
+</div>
+
+{% if headline.reasons %}
+<div class="card mb-3"><div class="card-header">What was found</div>
+  <ul class="list-group list-group-flush">
+    {% for r in headline.reasons %}<li class="list-group-item">{{ r }}</li>{% endfor %}
+  </ul></div>
+{% endif %}
+
+<table class="table bg-white mb-3">
+  <thead class="table-light"><tr><th>Check</th><th>Result</th></tr></thead>
+  <tbody>
+    {% for name, ok in checks %}
+    <tr><td>{{ name }}</td>
+      <td>{% if ok %}<span class="badge text-bg-success">&#10003; OK</span>{% else %}<span class="badge text-bg-danger">&#10007; Failed</span>{% endif %}</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+<p class="text-muted small">Checked at {{ ran_at }} by {{ current_user.username }}. Today's entries are not sealed yet:
+  a signed root is created for a day only after that day is over (see Daily roots).</p>
+<a class="btn btn-primary" href="/auditor/verify">Run again</a>
+<a class="btn btn-outline-secondary ms-2" href="/auditor/log">Back to log</a>
+{% endblock %}

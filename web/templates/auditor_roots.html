@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Daily roots - ExamVault{% endblock %}
+{% block content %}
+<h1 class="h4">Daily signed Merkle roots</h1>
+<div class="alert alert-info small">
+  Copy each root outside the server (email or print) so a changed server can be caught.
+  A root is signed only for completed days (before {{ today }} UTC), because it must match every entry of its day.
+</div>
+
+{% if pending %}
+<div class="card mb-3"><div class="card-body">
+  <div class="mb-2">Completed days without a signed root: <strong>{{ pending|join(', ') }}</strong></div>
+  <form method="post" action="/auditor/roots/generate" class="d-inline">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="date" value="all">
+    <button class="btn btn-primary" type="submit">Generate all missing roots</button>
+  </form>
+</div></div>
+{% endif %}
+
+{% if roots %}
+<table class="table bg-white align-middle">
+  <thead class="table-light"><tr><th>Date</th><th>Entries</th><th>Merkle root</th><th>Signed at</th><th>Signature</th></tr></thead>
+  <tbody>
+  {% for r in roots %}
+  <tr>
+    <td>{{ r.target_date }}</td>
+    <td>{{ r.entry_count }}</td>
+    <td><details><summary><code>{{ r.merkle_root[:16] }}</code></summary><div class="small text-break">{{ r.merkle_root }}</div></details></td>
+    <td class="small">{{ r.signed_at }}</td>
+    <td>{% if r.valid %}<span class="badge text-bg-success">Valid</span>{% else %}<span class="badge text-bg-danger">Invalid</span>{% endif %}</td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<div class="alert alert-secondary">No signed roots yet.</div>
+{% endif %}
+{% endblock %}

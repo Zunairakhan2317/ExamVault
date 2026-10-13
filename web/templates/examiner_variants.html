@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}Variants review - ExamVault{% endblock %}
+{% block content %}
+<h1 class="h3 mb-3">Variants review</h1>
+
+{% if not exams %}
+<div class="text-center text-muted py-5">No exams yet. Upload your first exam.</div>
+{% else %}
+<form class="row g-2 mb-3" method="get" action="{{ url_for('examiner_variants') }}">
+  <div class="col-md-8">
+    <label class="form-label" for="exam_id">Exam</label>
+    <select class="form-select" id="exam_id" name="exam_id">
+      {% for e in exams %}
+      <option value="{{ e.exam_id }}" {% if selected and e.exam_id == selected.exam_id %}selected{% endif %}>{{ e.title }} ({{ e.subject }})</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="col-md-4 d-flex align-items-end"><button class="btn btn-outline-primary" type="submit">Show</button></div>
+</form>
+
+{% if slots is none %}
+<div class="alert alert-info">No variant slots for this exam.</div>
+{% else %}
+<div class="card mb-3"><div class="card-body">
+  <div class="mb-2">Total slots: {{ total }} (minimum {{ minimum }})</div>
+  <progress class="w-100" max="{{ minimum }}" value="{{ [total, minimum] | min }}">{{ percent }}%</progress>
+  {% if total < minimum %}<div class="alert alert-warning mt-2 mb-0">Need at least {{ minimum }} slots</div>{% endif %}
+</div></div>
+
+<div class="alert alert-secondary">Dono variants ka matlab, marks aur numbers bilkul same hone chahiye.</div>
+
+<ul class="nav nav-pills mb-3">
+  {% for key, label in [('all', 'All'), ('reviewed', 'Reviewed'), ('doubtful', 'Doubtful')] %}
+  <li class="nav-item"><a class="nav-link {% if flt == key %}active{% endif %}" href="{{ url_for('examiner_variants', exam_id=selected.exam_id, filter=key) }}">{{ label }}</a></li>
+  {% endfor %}
+</ul>
+
+{% if shown %}
+<div class="table-responsive">
+  <table class="table table-sm align-middle bg-white">
+    <thead class="table-light">
+      <tr><th>Slot number</th><th>Question number</th>
+        {% for label in variant_labels %}<th>{{ label }}</th>{% endfor %}
+        <th>Marks</th><th>Reviewed by</th><th>Status</th><th></th></tr>
+    </thead>
+    <tbody>
+      {% for s in shown %}
+      <tr>
+        <td>{{ s.slot_id }}</td>
+        <td>{{ s.question_no }}</td>
+        {% for v in s.variants %}<td>{{ v }}{% endfor %}
+        <td>{{ s.marks if s.marks is not none else '-' }}</td>
+        <td>{{ s.reviewed_by or '-' }}</td>
+        <td>
+          {% if s.status == 'ok' %}<span class="badge text-bg-success">OK</span>
+          {% elif s.status == 'doubtful' %}<span class="badge text-bg-danger">Doubtful</span>
+          {% else %}-{% endif %}
+        </td>
+        <td class="text-nowrap">
+          <form method="post" action="{{ url_for('examiner_variant_review', exam_id=selected.exam_id) }}" class="d-inline">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="slot_id" value="{{ s.slot_id }}">
+            <input type="hidden" name="filter" value="{{ flt }}">
+            <button class="btn btn-sm btn-outline-success" name="action" value="reviewed" type="submit">Mark reviewed</button>
+            <button class="btn btn-sm btn-outline-danger" name="action" value="doubtful" type="submit">Flag doubtful</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="text-center text-muted py-4">No slots to show.</div>
+{% endif %}
+{% endif %}
+{% endif %}
+<a class="btn btn-outline-secondary" href="{{ url_for('examiner_upload') }}">Back to upload</a>
+{% endblock %}

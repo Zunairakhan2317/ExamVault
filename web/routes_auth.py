@@ -13,6 +13,7 @@ import base64
 import math
 import sqlite3
 import time
+from datetime import datetime, timezone
 from functools import lru_cache
 
 from cryptography.exceptions import InvalidTag
@@ -30,6 +31,7 @@ from auth.totp import (
     unprotect_secret,
     verify_code,
 )
+from web import exam_store
 from web.audit_log import log_event
 from web.db import get_db
 from web.user import load_user_by_id
@@ -69,6 +71,15 @@ def _count(conn: sqlite3.Connection, sql: str) -> int | None:
         return None
 
 
+def _scalar(conn: sqlite3.Connection, sql: str):
+    """First column of the first row, or None if the table does not exist yet."""
+    try:
+        row = conn.execute(sql).fetchone()
+    except sqlite3.OperationalError:
+        return None
+    return row[0] if row is not None else None
+
+
 def _pending_user(conn: sqlite3.Connection):
     """The user who passed the password step in this browser session (or None)."""
     uid = session.get("pending_uid")
@@ -98,6 +109,9 @@ def _count_failure(conn: sqlite3.Connection, username: str, action: str) -> bool
 def _finish_login(conn: sqlite3.Connection, user: sqlite3.Row, step: int):
     """Both factors passed: store the TOTP step (replay protection) and start a fresh session."""
     ip = request.remote_addr
+    previous_login = conn.execute(
+        "SELECT last_login_at FROM users WHERE id = ?", (user["id"],)
+    ).fetchone()["last_login_at"]
     conn.execute("UPDATE users SET totp_last_step = ? WHERE id = ?", (step, user["id"]))
     conn.commit()
     try:
@@ -110,6 +124,12 @@ def _finish_login(conn: sqlite3.Connection, user: sqlite3.Row, step: int):
     session.clear()  # new session after authentication
     login_user(load_user_by_id(conn, uid))
     session.permanent = True
+    session["previous_login"] = previous_login  # shown on the dashboard as "Last login"
+    conn.execute(
+        "UPDATE users SET last_login_at = ? WHERE id = ?",
+        (datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), uid),
+    )
+    conn.commit()
     log_event(conn, user["username"], "login_success", {"ip": ip})
     return redirect("/dashboard")
 
@@ -270,9 +290,58 @@ def register(app: Flask) -> None:
     @role_required(*ROLES)
     def dashboard():
         conn = get_db()
+        role = getattr(current_user, "role", None)
+        alerts = _count(conn, "SELECT COUNT(*) FROM honeytoken_events")
         stats = {
             "users": _count(conn, "SELECT COUNT(*) FROM users"),
             "revoked": _count(conn, "SELECT COUNT(*) FROM certificates WHERE revoked_at IS NOT NULL"),
-            "alerts": _count(conn, "SELECT COUNT(*) FROM honeytoken_events"),
+            "alerts": alerts,
         }
-        return render_template("dashboard.html", stats=stats)
+        exams: list = []
+        examiner_stats: dict = {}
+        if role == "admin":
+            stats["active_exams"] = exam_store.count_active_exams(conn)
+        if role == "auditor":
+            stats["log_entries"] = _count(conn, "SELECT COUNT(*) FROM audit_entries")
+            stats["last_root_date"] = _scalar(conn, "SELECT MAX(target_date) FROM merkle_roots")
+        if role == "invigilator":
+            try:
+                exams = exam_store.exams_for_user(
+                    conn, current_user.id, current_app.extensions.get("examvault_pending")
+                )
+            except Exception:  # the exam database may not exist yet
+                exams = []
+        if role == "examiner":
+            try:
+                exams = exam_store.examiner_exams_list(
+                    conn, current_user.id, current_app.extensions.get("examvault_pending")
+                )
+                # Filter active exams only
+                active_exams = [e for e in exams if e.get("is_active", True)]
+                # Total active exams count
+                examiner_stats["my_exams_count"] = len(active_exams)
+                # Next upcoming exam: active exams with window status "before" or "open", earliest start_utc
+                upcoming = [e for e in active_exams if e.get("status") in ("before", "open")]
+                if upcoming:
+                    # Sort by start_utc and pick the earliest
+                    upcoming.sort(key=lambda x: x.get("start_utc", ""))
+                    examiner_stats["next_exam"] = upcoming[0]
+                # Last 5 exams (most recent first)
+                all_sorted = sorted(active_exams, key=lambda x: x.get("exam_id", ""), reverse=True)
+                examiner_stats["recent_exams"] = all_sorted[:5]
+            except Exception:  # the exam database may not exist yet
+                exams = []
+                examiner_stats = {
+                    "my_exams_count": 0,
+                    "next_exam": None,
+                    "recent_exams": [],
+                }
+        show_alert_banner = role in ("admin", "auditor") and bool(alerts)
+        return render_template(
+            "dashboard.html",
+            stats=stats,
+            exams=exams,
+            examiner_stats=examiner_stats,
+            last_login=session.get("previous_login"),
+            show_alert_banner=show_alert_banner,
+        )

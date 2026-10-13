@@ -1,19 +1,95 @@
 {% extends "base.html" %}
 {% block title %}Dashboard - ExamVault{% endblock %}
 {% block content %}
-<h1 class="h4">Welcome, {{ current_user.username }}
+{% if show_alert_banner %}
+<div class="alert alert-danger">
+  <strong>Security alert:</strong> {{ stats.alerts }} open alert{{ '' if stats.alerts == 1 else 's' }}.
+  {% if current_user.role == 'admin' %}<a class="alert-link" href="/admin/alerts">View alerts</a>{% endif %}
+</div>
+{% endif %}
+
+<h1 class="h4">Welcome, {{ current_user.full_name }}
   <span class="badge text-bg-secondary">{{ current_user.role }}</span></h1>
+<p class="text-muted">Last login: {{ last_login[:19].replace('T', ' ') ~ ' UTC' if last_login else 'first login' }}</p>
+
 <div class="row mt-4 g-3">
   {% if current_user.role == 'admin' %}
-    <div class="col-md-4"><div class="card"><div class="card-body">
+    <div class="col-md-3"><div class="card"><div class="card-body">
       <div class="text-muted">Total users</div><div class="fs-2">{{ stats.users if stats.users is not none else '-' }}</div></div></div></div>
-    <div class="col-md-4"><div class="card"><div class="card-body">
+    <div class="col-md-3"><div class="card"><div class="card-body">
+      <div class="text-muted">Active exams</div><div class="fs-2">{{ stats.active_exams if stats.active_exams is not none else '-' }}</div></div></div></div>
+    <div class="col-md-3"><div class="card"><div class="card-body">
       <div class="text-muted">Revoked certificates</div><div class="fs-2">{{ stats.revoked if stats.revoked is not none else '-' }}</div></div></div></div>
-    <div class="col-md-4"><div class="card {% if stats.alerts %}border-danger{% endif %}"><div class="card-body">
-      <div class="text-muted">Open alerts</div><div class="fs-2">{{ stats.alerts if stats.alerts is not none else '-' }}</div></div></div></div>
-  {% else %}
-    <div class="col-12"><div class="card"><div class="card-body text-muted">
-      Aap ke role ke pages upar menu me hain. Exam ka data aate hi yahan dikhega.</div></div></div>
+    <div class="col-md-3"><div class="card {% if stats.alerts %}border-danger{% endif %}"><div class="card-body">
+      <div class="text-muted">Open alerts</div><div class="fs-2 {% if stats.alerts %}text-danger{% endif %}">{{ stats.alerts if stats.alerts is not none else '-' }}</div></div></div></div>
+    <div class="col-12">
+      <a class="btn btn-primary" href="/admin/users/new">Add user</a>
+      <a class="btn btn-outline-secondary" href="/admin/alerts">View alerts</a>
+    </div>
+  {% elif current_user.role == 'examiner' %}
+    <div class="col-md-6"><div class="card"><div class="card-body">
+      <div class="text-muted">My exams</div>
+      {% if examiner_stats.get('my_exams_count') is not none %}
+      <div class="fs-2">{{ examiner_stats.my_exams_count }}</div>
+      {% else %}
+      <div class="fs-2">-</div>
+      {% endif %}
+      <div class="small text-muted">{% if examiner_stats.get('my_exams_count') is not none and examiner_stats.my_exams_count == 0 %}No exams yet. Upload your first exam.{% endif %}</div></div></div></div>
+    <div class="col-md-6"><div class="card"><div class="card-body">
+      <div class="text-muted">Next exam</div>
+      {% if examiner_stats.get('next_exam') %}
+      <div class="fs-2">{{ examiner_stats.next_exam.exam_id[:8] }}...</div>
+      <div class="small text-muted">{{ examiner_stats.next_exam.start_utc }} to {{ examiner_stats.next_exam.end_utc }}</div>
+      {% else %}
+      <div class="fs-2">-</div>
+      <div class="small text-muted">No upcoming exam.</div>
+      {% endif %}
+      </div></div></div>
+    <div class="col-12"><a class="btn btn-primary" href="/examiner/upload">Upload new exam</a></div>
+    <div class="col-12"><div class="card">
+      <div class="card-header">Last 5 exams</div>
+      <div class="card-body">
+        {% if examiner_stats.get('recent_exams') %}
+        <ul class="list-group list-group-flush">
+          {% for exam in examiner_stats.recent_exams %}
+          <li class="list-group-item small">
+            <code>{{ exam.exam_id[:8] }}...</code>:
+            {{ exam.start_utc }} to {{ exam.end_utc }} -
+            {{ exam.title|default('(untitled)') }}
+          </li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <div class="text-muted">No exams yet. Upload your first exam.</div>
+        {% endif %}
+      </div>
+    </div></div>
+  {% elif current_user.role == 'invigilator' %}
+    <div class="col-12"><div class="card">
+      <div class="card-header">Upcoming exams</div>
+      {% if exams %}
+      <ul class="list-group list-group-flush">
+        {% for e in exams %}
+        <li class="list-group-item d-flex justify-content-between align-items-center">
+          <span><code>{{ e.exam_id }}</code><br>
+            <small class="text-muted">{{ e.start_utc }} to {{ e.end_utc }}</small></span>
+          <span><span class="badge text-bg-{{ e.badge }} me-2">{{ e.label }}</span>
+            <a class="btn btn-sm btn-primary" href="/invigilator/exam/{{ e.exam_id }}">Open</a></span>
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <div class="card-body text-muted">No exams yet.</div>
+      {% endif %}
+    </div></div>
+  {% elif current_user.role == 'auditor' %}
+    <div class="col-md-4"><div class="card"><div class="card-body">
+      <div class="text-muted">Last verification</div><div class="fs-5">Not run yet</div></div></div></div>
+    <div class="col-md-4"><div class="card"><div class="card-body">
+      <div class="text-muted">Total log entries</div><div class="fs-2">{{ stats.log_entries if stats.log_entries is not none else '-' }}</div></div></div></div>
+    <div class="col-md-4"><div class="card"><div class="card-body">
+      <div class="text-muted">Last daily root date</div><div class="fs-5">{{ stats.last_root_date or '-' }}</div></div></div></div>
+    <div class="col-12"><a class="btn btn-primary" href="/auditor/verify">Run verification</a></div>
   {% endif %}
 </div>
 {% endblock %}

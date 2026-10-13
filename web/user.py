@@ -13,6 +13,7 @@ class User(UserMixin):
         self.id = int(row["id"])
         self.username = row["username"]
         self.role = row["role"]
+        self.full_name = row["full_name"] or row["username"]
 
 
 def load_user_by_id(conn: sqlite3.Connection, user_id: object) -> User | None:
@@ -22,7 +23,7 @@ def load_user_by_id(conn: sqlite3.Connection, user_id: object) -> User | None:
     except (TypeError, ValueError):
         return None
     row = conn.execute(
-        "SELECT id, username, role, is_active FROM users WHERE id = ?", (uid,)
+        "SELECT id, username, full_name, role, is_active FROM users WHERE id = ?", (uid,)
     ).fetchone()
     if row is None or not row["is_active"]:
         return None

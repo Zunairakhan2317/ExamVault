@@ -1,0 +1,52 @@
+[
+  {
+    "slot_id": 1,
+    "question_no": "1",
+    "group_index": 0,
+    "variants": [
+      "What is Information Security ? Define and explain its importance",
+      "Define how would you define Information Security ? Explain why it is important"
+    ],
+    "marks": 5
+  },
+  {
+    "slot_id": 2,
+    "question_no": "2",
+    "group_index": 0,
+    "variants": [
+      "What is Confidentiality? Define and explain its role in Information Security.",
+      "Define Confidentiality? Explain how it protects information."
+    ],
+    "marks": 5
+  },
+  {
+    "slot_id": 3,
+    "question_no": "3",
+    "group_index": 0,
+    "variants": [
+      "What is Integrity? Define and explain it maintains accurate information.",
+      "Define Integrity? Explain how it ensures data accuracy."
+    ],
+    "marks": 5
+  },
+  {
+    "slot_id": 4,
+    "question_no": "4",
+    "group_index": 0,
+    "variants": [
+      "What is Availability? Define and explain it ensures information is accessible.",
+      "Define Availability? Explain why it keeps information available."
+    ],
+    "marks": 5
+  },
+  {
+    "slot_id": 5,
+    "question_no": "5",
+    "group_index": 0,
+    "variants": [
+      "What is a Security Threat? Define and explain its different types.",
+      "Define a Security Threat? Describe how it affects information systems."
+    ],
+    "marks": 5
+  }
+]

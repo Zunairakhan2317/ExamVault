@@ -5,6 +5,7 @@ import json
 import sqlite3
 import sys
 from collections.abc import Sequence
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -111,21 +112,26 @@ def _inspect_daily_roots(
     entry_dates: list[str],
 ) -> dict[str, Any]:
     """Recompute stored daily roots and verify their configured signatures."""
+    # The current UTC day is still "open": a root signed now would stop matching with the next log entry,
+    # so only COMPLETED days must already have a signed root.
+    today = datetime.now(timezone.utc).date().isoformat()
+    completed_days = sorted(day for day in set(entry_dates) if day < today)
     try:
         root_rows = db_conn.execute(
             "SELECT target_date, merkle_root, entry_count FROM merkle_roots ORDER BY target_date"
         ).fetchall()
     except sqlite3.Error as error:
+        # No roots table yet: that is only a problem once a COMPLETED day exists that should have been sealed.
         return {
-            "valid": False,
-            "signature_valid": False,
-            "missing_dates": entry_dates,
+            "valid": not completed_days,
+            "signature_valid": not completed_days,
+            "missing_dates": completed_days,
             "invalid_dates": [],
             "error": str(error),
         }
 
     roots_by_date = {str(target_date): (str(root), int(count)) for target_date, root, count in root_rows}
-    missing_dates = sorted(set(entry_dates) - set(roots_by_date))
+    missing_dates = sorted(set(completed_days) - set(roots_by_date))
     invalid_dates: list[str] = []
     signatures_valid = True
     for target_date, (stored_root, stored_count) in roots_by_date.items():

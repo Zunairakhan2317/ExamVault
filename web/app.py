@@ -14,10 +14,14 @@ from flask_wtf.csrf import CSRFProtect
 
 from audit.daily_root import configure_audit_signing_keys
 from auth import lockout, rbac
-from web.audit_log import log_event
+from web.audit_log import AuditTamperedError, log_event
 from web.db import close_db, get_connection, get_db, init_db
 from web.user import load_user_by_id
+from web.routes_admin import register as register_admin_routes
+from web.routes_auditor import register as register_auditor_routes
 from web.routes_auth import register as register_auth_routes
+from web.routes_examiner import register as register_examiner_routes
+from web.routes_invigilator import register as register_invigilator_routes
 
 _INTERNAL_KEYS = {"SKIP_DOTENV", "SECRET_KEY", "TOTP_ENCRYPTION_KEY"}
 _ERROR_TEXT = {
@@ -110,7 +114,7 @@ def create_app(config: dict | None = None) -> Flask:
         SESSION_COOKIE_SECURE=False,
         PERMANENT_SESSION_LIFETIME=timedelta(minutes=15),
         SESSION_REFRESH_EACH_REQUEST=True,
-        MAX_CONTENT_LENGTH=10 * 1024 * 1024,
+        MAX_CONTENT_LENGTH=10 * 1024 * 1024 + 256 * 1024,  # 10 MB file plus form fields; the upload route enforces the exact 10 MB
     )
     app.config.update({k: v for k, v in cfg.items() if k not in _INTERNAL_KEYS})
 
@@ -184,6 +188,12 @@ def create_app(config: dict | None = None) -> Flask:
     def _not_found(_error):
         return _error_page(404)
 
+    @app.errorhandler(413)
+    def _too_large(_error):
+        return render_template(
+            "error.html", code=413, title="File too large", line="PDF ya text, max 10 MB."
+        ), 413
+
     @app.errorhandler(429)
     def _too_many(_error):
         try:
@@ -199,7 +209,26 @@ def create_app(config: dict | None = None) -> Flask:
     def _server_error(_error):
         return _error_page(500)
 
+    @app.errorhandler(AuditTamperedError)
+    def _audit_tampered(_error):
+        """Fail closed with a friendly banner (no stack trace) when the audit chain is corrupted.
+
+        Any route that writes to the audit log raises AuditTamperedError once the chain no longer
+        verifies, so every audited action is refused instead of crashing with a 500.
+        """
+        return render_template(
+            "error.html",
+            code=503,
+            title="Audit log check failed",
+            line="The audit log failed its integrity check, so this action is blocked. "
+                 "Please contact the auditor or an administrator.",
+        ), 503
+
     register_auth_routes(app)
+    register_admin_routes(app)
+    register_invigilator_routes(app)
+    register_auditor_routes(app)
+    register_examiner_routes(app)
 
     @app.get("/")
     def index():

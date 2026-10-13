@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block title %}Leak Analyzer - ExamVault{% endblock %}
+{% block content %}
+<h1 class="h3 mb-3">Leak Analyzer</h1>
+{% if exam %}
+<p class="text-muted">Exam: {{ exam.exam_title or '(untitled)' }} <code>{{ exam.exam_id }}</code></p>
+{% endif %}
+<div class="alert alert-info">
+  Paste a leaked copy of the paper or upload a text/PDF file. The wording is matched against every
+  variant slot of the selected exam and the Tardos accusation scores rank the invigilators who hold a copy.
+</div>
+<div class="alert alert-warning">Ye score evidence hai, saboot nahi. Aur ghaur karna zaroori hai.</div>
+
+{% if errors %}
+<div class="alert alert-danger">
+  <ul class="mb-0">
+    {% for error in errors %}<li>{{ error }}</li>{% endfor %}
+  </ul>
+</div>
+{% endif %}
+
+{% if results %}
+<div class="card shadow-sm">
+  <div class="card-header">Ranked suspects</div>
+  <div class="table-responsive">
+    <table class="table table-striped table-hover mb-0">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Invigilator</th>
+          <th class="text-end">Score</th>
+          <th>Confidence</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in results %}
+        <tr>
+          <td class="text-muted">{{ loop.index }}</td>
+          <td>{{ row.username }}</td>
+          <td class="text-end">{{ row.score }}</td>
+          <td>
+            <span class="badge {% if row.confidence == 'High' %}bg-danger{% elif row.confidence == 'Medium' %}bg-warning{% else %}bg-secondary{% endif %}">
+              {{ row.confidence }}
+            </span>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+<form method="post" enctype="multipart/form-data" class="mt-4">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+  <div class="row g-2">
+    <div class="col-md-8">
+      <label class="form-label">Pasted leaked text</label>
+      <textarea name="leak_text" rows="8" class="form-control" placeholder="Paste the leaked copy of the paper here..."></textarea>
+    </div>
+    <div class="col-md-4">
+      <label class="form-label">Or upload a file</label>
+      <input type="file" name="leak_file" class="form-control" accept=".txt,.pdf">
+      <div class="form-text">Text (.txt) or text-based PDF only, up to 10 MB.</div>
+    </div>
+  </div>
+  <button type="submit" class="btn btn-primary mt-3">Analyze leak</button>
+</form>
+{% endblock %}

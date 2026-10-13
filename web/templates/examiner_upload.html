@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+{% block title %}Upload exam - ExamVault{% endblock %}
+{% block content %}
+<h1 class="h3 mb-3">Upload exam</h1>
+
+{% if error %}<div class="alert alert-danger">{{ error }}</div>{% endif %}
+
+{% if result %}
+<div class="card border-success mb-4">
+  <div class="card-header text-bg-success">Exam created</div>
+  <div class="card-body">
+    <dl class="row mb-3">
+      <dt class="col-sm-4">Exam ID</dt><dd class="col-sm-8"><code>{{ result.exam_id }}</code></dd>
+      <dt class="col-sm-4">Paper hash</dt><dd class="col-sm-8"><code>{{ result.paper_hash }}</code></dd>
+      <dt class="col-sm-4">Signature</dt>
+      <dd class="col-sm-8">
+        {% if result.signature_valid %}<span class="text-success">&#10003; Signature: valid</span>
+        {% else %}<span class="text-danger">&#10007; Signature: invalid</span>{% endif %}
+      </dd>
+      <dt class="col-sm-4">k-of-n</dt><dd class="col-sm-8">k-of-n: {{ result.k }} of {{ result.n }}</dd>
+      <dt class="col-sm-4">Shares issued</dt><dd class="col-sm-8">Shares issued: {{ result.issued }}</dd>
+      <dt class="col-sm-4">Window (UTC)</dt><dd class="col-sm-8">{{ result.start }} to {{ result.end }}</dd>
+      <dt class="col-sm-4">Variant slots</dt><dd class="col-sm-8">Variant slots: {{ result.slots }}</dd>
+    </dl>
+    {% if result.slots == 0 %}
+    <div class="alert alert-warning">No variant slots found: every invigilator gets an identical copy, so a leak cannot be traced. Use {pehli wording | doosri wording} in the paper.</div>
+    {% elif result.slots < result.min_slots %}
+    <div class="alert alert-warning">Need at least {{ result.min_slots }} slots</div>
+    {% endif %}
+    <ol class="list-inline mb-3">
+      {% for step in steps %}<li class="list-inline-item"><span class="badge text-bg-success">&#10003; {{ step }}</span></li>{% endfor %}
+    </ol>
+    <a class="btn btn-primary" href="{{ url_for('examiner_exam_detail', exam_id=result.exam_id) }}">View exam</a>
+  </div>
+</div>
+{% endif %}
+
+<form id="upload-form" method="post" action="{{ url_for('examiner_upload_post') }}" enctype="multipart/form-data" autocomplete="off">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+  <div class="card mb-3"><div class="card-header">Exam info</div><div class="card-body">
+    <div class="mb-3">
+      <label class="form-label" for="exam_title">Title</label>
+      <input class="form-control" id="exam_title" name="exam_title" maxlength="120" value="{{ form.title or '' }}" required>
+    </div>
+    <div class="mb-0">
+      <label class="form-label" for="subject">Subject</label>
+      <input class="form-control" id="subject" name="subject" maxlength="120" value="{{ form.subject or '' }}" required>
+    </div>
+  </div></div>
+
+  <div class="card mb-3"><div class="card-header">Window</div><div class="card-body">
+    <div class="row g-3">
+      <div class="col-md-6">
+        <label class="form-label" for="window_start">Start date-time</label>
+        <input class="form-control" type="datetime-local" id="window_start" name="window_start" value="{{ form.start or '' }}" required>
+        <input type="hidden" id="window_start_utc" name="window_start_utc">
+        <div class="form-text" id="window_start_preview"></div>
+      </div>
+      <div class="col-md-6">
+        <label class="form-label" for="window_end">End date-time</label>
+        <input class="form-control" type="datetime-local" id="window_end" name="window_end" value="{{ form.end or '' }}" required>
+        <input type="hidden" id="window_end_utc" name="window_end_utc">
+        <div class="form-text" id="window_end_preview"></div>
+      </div>
+    </div>
+    <div class="form-text">Time server ke UTC clock se chalta hai. Aap apna local time likhein, wo UTC mein badal kar bheja jata hai (neeche dikhta hai).</div>
+  </div></div>
+
+  <div class="card mb-3"><div class="card-header">Paper file</div><div class="card-body">
+    <div class="border border-secondary rounded p-4 text-center bg-white">
+      <input class="form-control" type="file" id="paper" name="paper" accept=".pdf,.txt" required>
+      <div class="form-text">PDF ya text, max 10 MB</div>
+      <div class="form-text">Jahan har invigilator ko alag wording chahiye wahan {pehli wording | doosri wording} likhein. Variants isi paper se bante hain.</div>
+    </div>
+  </div></div>
+
+  <div class="card mb-3"><div class="card-header">Variants</div><div class="card-body">
+    <label class="form-label" for="variants">Variants file</label>
+    <select class="form-select mb-2" id="variants" name="variants">
+      <option value="current" selected>Use current variants file</option>
+    </select>
+    <a href="{{ url_for('examiner_variants') }}">Review variants</a>
+  </div></div>
+
+  <div class="card mb-3"><div class="card-header">Key split</div><div class="card-body">
+    <div class="row g-3">
+      <div class="col-md-6">
+        <label class="form-label" for="k">k</label>
+        <input class="form-control" type="number" min="2" max="99" id="k" name="k" value="{{ form.k }}" required>
+      </div>
+      <div class="col-md-6">
+        <label class="form-label" for="n">n</label>
+        <input class="form-control" type="number" min="2" max="99" id="n" name="n" value="{{ form.n }}" required>
+      </div>
+    </div>
+    <div class="form-text">Kisi bhi k holders se paper khulega</div>
+  </div></div>
+
+  <div class="card mb-3"><div class="card-header">Holders</div><div class="card-body">
+    {% if holders %}
+    {% for holder in holders %}
+    <div class="form-check">
+      <input class="form-check-input" type="checkbox" name="holder" value="{{ holder.id }}" id="holder{{ holder.id }}"
+             {% if holder.id in form.holders %}checked{% endif %}>
+      <label class="form-check-label" for="holder{{ holder.id }}">{{ holder.username }}</label>
+    </div>
+    {% endfor %}
+    {% else %}
+    <p class="text-muted mb-0">No invigilators yet. Ask an admin to add them.</p>
+    {% endif %}
+  </div></div>
+
+  <ol id="progress-steps" class="list-inline d-none">
+    {% for step in steps %}<li class="list-inline-item"><span class="badge text-bg-secondary">{{ step }}</span></li>{% endfor %}
+  </ol>
+
+  <button id="upload-button" class="btn btn-primary" type="submit">Encrypt, sign and split key</button>
+</form>
+<script src="{{ url_for('static', filename='upload.js') }}"></script>
+{% endblock %}

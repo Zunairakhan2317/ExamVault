@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Submit key share - ExamVault{% endblock %}
+{% block content %}
+<h1 class="h4">Submit key share for <code>{{ view.exam_id }}</code></h1>
+<div class="card shadow-sm">
+  <div class="card-body p-4">
+    <form method="post" action="/invigilator/submit-share/{{ view.exam_id }}" enctype="multipart/form-data" autocomplete="off">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="nonce" value="{{ nonce }}">
+      <ol>
+        <li class="mb-3">Proof of key possession: ye one-time challenge code is request ke saath jata hai:
+          <div><code>{{ nonce }}</code></div>
+          <div class="small text-muted">Aap apni key dikhaye baghair sabit karte ho ke aap ke paas hai.</div>
+        </li>
+        <li class="mb-3">
+          <label class="form-label" for="keyfile">Upload your private key file (.pem)</label>
+          <input class="form-control" id="keyfile" name="keyfile" type="file" accept=".pem" required>
+          <div class="small text-muted mt-1">Aap ki key disk ya database me save nahi hoti. Ye sirf server ki memory me
+            release hone ya window khatam hone tak rehti hai.</div>
+        </li>
+        <li class="mb-3"><button class="btn btn-primary" type="submit">Submit share</button>
+          <a class="btn btn-outline-secondary ms-2" href="/invigilator/exam/{{ view.exam_id }}">Cancel</a></li>
+      </ol>
+    </form>
+  </div>
+</div>
+{% endblock %}

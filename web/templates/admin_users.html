@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+{% block title %}Users - Admin - ExamVault{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h1 class="h3">Users</h1>
+  <a class="btn btn-primary" href="{{ url_for('admin_users_new') }}">Add user</a>
+</div>
+
+<form method="get" action="{{ url_for('admin_users') }}" class="row g-3 mb-4">
+  <div class="col-auto"><input class="form-control" type="text" name="search" placeholder="Search username, name or email"
+                               value="{{ search or '' }}"></div>
+  <div class="col-auto">
+    <select class="form-select" name="role">
+      <option value="">All roles</option>
+      {% for r in roles %}
+      <option value="{{ r }}" {% if r == role_filter %}selected{% endif %}>{{ r|capitalize }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="col-auto">
+    <button class="btn btn-outline-secondary" type="submit">Filter</button>
+    <a class="btn btn-outline-secondary" href="{{ url_for('admin_users') }}">Clear</a>
+  </div>
+</form>
+
+{% if users %}
+<div class="table-responsive">
+  <table class="table table-hover">
+    <thead><tr>
+      <th>Username</th><th>Full name</th><th>Role</th>
+      <th>Status</th><th>Certificate serial</th><th>2FA enrolled</th><th>Last login</th>
+      <th>Actions</th>
+    </tr></thead>
+    <tbody>
+      {% for u in users %}
+      <tr>
+        <td><code>{{ u.username }}</code></td>
+        <td>{{ u.full_name or '-' }}</td>
+        <td>
+          <span class="badge text-bg-{{ 'secondary' if u.role == 'admin' else 'primary' }}">
+            {{ u.role|capitalize }}
+          </span>
+        </td>
+        <td>
+          {% if u.is_revoked %}
+          <span class="badge text-bg-danger">Revoked</span>
+          {% elif u.is_active %}
+          <span class="badge text-bg-success">Active</span>
+          {% else %}
+          <span class="badge text-bg-secondary">Disabled</span>
+          {% endif %}
+        </td>
+        <td><small class="text-muted">{{ (u.cert_serial or '')[:8] or '-' }}</small></td>
+        <td class="text-center">{{ 'Yes' if u.has_2fa else 'No' }}</td>
+        <td>
+          {% if u.last_login_at %}
+            <small>{{ u.last_login_at[:19] }}</small>
+          {% else %}
+            <small class="text-muted">never</small>
+          {% endif %}
+        </td>
+        <td>
+          {% if u.is_active %}
+          <form method="post" action="{{ url_for('admin_users_disable', user_id=u.id) }}" class="d-inline">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="btn btn-sm btn-warning" type="submit">Disable</button>
+          </form>
+          {% endif %}
+
+          {% if not u.is_revoked %}
+          <div class="d-inline">
+            <button class="btn btn-sm btn-danger" type="button"
+                    data-bs-toggle="modal" data-bs-target="#revokeModal{{ u.id }}">
+              Revoke
+            </button>
+            <div class="modal fade" id="revokeModal{{ u.id }}" tabindex="-1" aria-hidden="true">
+              <div class="modal-dialog">
+                <div class="modal-content">
+                  <form method="post" action="{{ url_for('admin_users_revoke', user_id=u.id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="modal-header"><h5 class="modal-title">Revoke {{ u.username }}</h5>
+                      <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                      <p>Is user ka certificate revoke ho jayega aur shares dobara banane honge. Pakka?</p>
+                      <label class="form-label" for="reason{{ u.id }}">Reason</label>
+                      <select class="form-select" id="reason{{ u.id }}" name="reason" required>
+                        <option value="">Select a reason</option>
+                        {% for value, label in revoke_reasons %}
+                        <option value="{{ value }}">{{ label }}</option>
+                        {% endfor %}
+                      </select>
+                    </div>
+                    <div class="modal-footer">
+                      <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                      <button class="btn btn-danger" type="submit">Confirm revoke</button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            </div>
+          </div>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<nav>
+  <ul class="pagination justify-content-center">
+    {% if page > 1 %}
+    <li class="page-item"><a class="page-link" href="{{ url_for('admin_users', page=page-1, search=search, role=role_filter) }}">&laquo;</a></li>
+    {% endif %}
+    <li class="page-item active"><span class="page-link">{{ page }} / {{ total_pages }}</span></li>
+    {% if page < total_pages %}
+    <li class="page-item"><a class="page-link" href="{{ url_for('admin_users', page=page+1, search=search, role=role_filter) }}">&raquo;</a></li>
+    {% endif %}
+  </ul>
+</nav>
+
+<p class="text-muted small text-center">Showing {{ ((page-1)*20)+1 if total else 0 }}-{{ [page*20, total]|min }} of {{ total }} users</p>
+
+{% else %}
+<div class="alert alert-info">No users yet</div>
+{% endif %}
+{% endblock %}

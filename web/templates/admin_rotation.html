@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+    <h2>Key & Share Rotation Dashboard (Plan 3.7)</h2>
+    <p class="text-muted">Manage share rotation for exams affected by user revocations or compromised keys.</p>
+    
+    <hr>
+    <h4>Revoked / Compromised Users</h4>
+    <ul>
+        {% for u in revoked_users %}
+        <li>User: <strong>{{ u.username }}</strong> (ID: {{ u.id }})</li>
+        {% else %}
+        <li>No revoked users currently.</li>
+        {% endfor %}
+    </ul>
+
+    <h4 class="mt-4">Active Exams</h4>
+    <table class="table table-bordered">
+        <thead>
+            <tr>
+                <th>Exam ID</th>
+                <th>Status</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for exam in exams %}
+            <tr>
+                <td>{{ exam.exam_id }}</td>
+                <td>Released / Active</td>
+                <td>
+                    <form action="{{ url_for('admin_rotate_exam', exam_id=exam.exam_id) }}" method="POST">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="btn btn-warning btn-sm">Trigger Rotation</button>
+                    </form>
+                </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="3">No exams found.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
