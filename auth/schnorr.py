@@ -2,7 +2,7 @@
 auth/schnorr.py
 
 Provides non-interactive Zero-Knowledge Proofs of key possession using the 
-Schnorr signature/identification scheme via the Fiat-Shamir heuristic[cite: 22, 37].
+Schnorr signature/identification scheme via the Fiat-Shamir heuristic.
 Security Property: Proves knowledge of the discrete logarithm (secret key) 
 without revealing the secret itself, bound to a server nonce and timestamp to prevent replays.
 """
@@ -13,7 +13,7 @@ from crypto.feldman import P, Q, G
 
 def generate_schnorr_keypair():
     """
-    Generates a Schnorr keypair (secret x, public y) in the Feldman/RFC 3526 group[cite: 22].
+    Generates a Schnorr keypair (secret x, public y) in the Feldman/RFC 3526 group.
     x is a random scalar in [1, Q-1], y = G^x mod P.
     """
     x = secrets.randbelow(Q - 1) + 1
@@ -22,7 +22,7 @@ def generate_schnorr_keypair():
 
 def generate_schnorr_proof(x, y, server_nonce, timestamp):
     """
-    Generates a non-interactive Fiat-Shamir Schnorr proof (t, s) for secret x[cite: 22, 37].
+    Generates a non-interactive Fiat-Shamir Schnorr proof (t, s) for secret x.
     """
     # 1. Pick random ephemeral scalar r in [1, Q-1]
     r = secrets.randbelow(Q - 1) + 1
@@ -41,7 +41,7 @@ def generate_schnorr_proof(x, y, server_nonce, timestamp):
 
 def verify_schnorr_proof(y, t, s, server_nonce, timestamp):
     """
-    Verifies a non-interactive Schnorr proof (t, s) against public key y[cite: 22, 37].
+    Verifies a non-interactive Schnorr proof (t, s) against public key y.
     Checks whether G^s == t * y^c mod P.
     """
     if not (0 < s < Q) or not (0 < t < P):

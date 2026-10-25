@@ -30,7 +30,7 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 
 from auth import timewindow
-from crypto import feldman, keywrap
+from crypto import feldman, keywrap, pki
 from crypto.services import paper_service
 from web import exam_store
 from web.audit_log import log_event
@@ -179,11 +179,8 @@ def _submit(
     release_handlers: Sequence[Callable[[str, bytes], None]],
     now_dt: Any,
 ) -> dict[str, Any]:
-    # Check if user certificate is revoked via PKI/CRL check
-    cert_row = conn.execute(
-        "SELECT revoked_at FROM certificates WHERE user_id = ?", (user_id,)
-    ).fetchone()
-    if cert_row and cert_row["revoked_at"] is not None:
+    # Plan 6.6: certificate + CRL check (a revoked, expired or forged certificate is refused)
+    if not pki.user_certificate_ok(conn, user_id):
         raise ShareRefused("revoked_certificate", "Your certificate has been revoked. Submission refused.")
 
     consume_nonce(conn, nonce, now_dt.isoformat())

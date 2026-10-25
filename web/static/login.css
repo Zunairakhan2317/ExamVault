@@ -1,0 +1,201 @@
+/* =====================================================================================
+   ExamVault sign-in pages (login, two-factor, enroll). Calm, flat, professional.
+   Colours come only from theme.css variables. Class names are unchanged, so
+   login_2fa.html and enroll_2fa.html keep working.
+   ===================================================================================== */
+
+.neu-login {
+  /* surfaces: the card sits on the page; inputs and code boxes are recessed (page colour) */
+  --neu-bg: rgb(var(--ev-page-bg-rgb));
+  --neu-card: rgb(var(--ev-surface-rgb));
+  /* kept for enroll.css and the verifying animation; now soft, flat shadows instead of neumorphic ones */
+  --neu-lo: rgba(0, 0, 0, .40);
+  --neu-hi: rgba(255, 255, 255, .03);
+  --neu-raised: 0 24px 60px -24px rgba(0, 0, 0, .7), 0 2px 8px rgba(0, 0, 0, .25);
+  --neu-raised-sm: 0 4px 12px rgba(0, 0, 0, .28);
+  --neu-inset: inset 0 1px 3px rgba(0, 0, 0, .35);
+
+  position: relative;
+  min-height: calc(100vh - 9rem);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+}
+
+/* page backdrop: one soft glow at the top plus a faint grid that fades out */
+body.bg-light:has(.neu-login) {
+  background-color: rgb(var(--ev-page-bg-rgb)) !important;
+  background-image: radial-gradient(1000px 520px at 50% -8%, rgba(var(--ev-primary-rgb), .13), transparent 62%);
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+}
+.neu-login::before {
+  content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background-image:
+    linear-gradient(rgba(var(--ev-text-rgb), .04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(var(--ev-text-rgb), .04) 1px, transparent 1px);
+  background-size: 56px 56px;
+  -webkit-mask-image: radial-gradient(ellipse 65% 55% at 50% 38%, #000 0%, transparent 75%);
+  mask-image: radial-gradient(ellipse 65% 55% at 50% 38%, #000 0%, transparent 75%);
+}
+.neu-login::after { content: none; }
+
+/* ---- card ---- */
+.neu-card {
+  position: relative; z-index: 1;
+  width: 100%; max-width: 420px; padding: 2.5rem 2.25rem 2rem; text-align: center;
+  background: var(--neu-card);
+  border: 1px solid rgb(var(--ev-border-rgb));
+  border-radius: 20px;
+  box-shadow: var(--neu-raised), inset 0 1px 0 rgba(255, 255, 255, .04);
+}
+/* thin teal highlight along the top edge */
+.neu-card::before {
+  content: ""; position: absolute; top: -1px; left: 14%; right: 14%; height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(var(--ev-accent-rgb), .55), transparent);
+}
+
+/* logo tile */
+.neu-badge {
+  width: 52px; height: 52px; margin: 0 auto 1.25rem;
+  display: grid; place-items: center; border-radius: 14px; color: #fff;
+  background: linear-gradient(135deg, var(--ev-primary), color-mix(in srgb, var(--ev-accent) 65%, var(--ev-primary)));
+  box-shadow: 0 8px 20px -10px rgba(var(--ev-primary-rgb), .6), inset 0 1px 0 rgba(255, 255, 255, .18);
+}
+.neu-badge svg { width: 24px; height: 24px; }
+
+.neu-title { margin: 0; font-size: 1.5rem; font-weight: var(--ev-heading-weight); letter-spacing: -.01em; color: rgb(var(--ev-text-rgb)); }
+.neu-sub { margin: .3rem 0 1.75rem; font-size: .92rem; color: rgb(var(--ev-muted-rgb)); }
+
+/* ---- fields ---- */
+.neu-form { text-align: left; }
+.neu-field { position: relative; margin-bottom: 1.1rem; }
+.neu-label { display: block; margin: 0 0 .4rem 2px; font-size: .82rem; font-weight: 600; color: rgb(var(--ev-muted-rgb)); }
+
+.neu-login .form-control {
+  padding: .75rem 1rem; font-size: .95rem;
+  color: rgb(var(--ev-text-rgb)); background: var(--neu-bg);
+  border: 1px solid rgb(var(--ev-border-rgb)); border-radius: 12px; box-shadow: none;
+  transition: border-color .2s ease, box-shadow .2s ease;
+}
+.neu-login .form-control::placeholder { color: rgba(var(--ev-muted-rgb), .6); }
+.neu-login .form-control:hover { border-color: color-mix(in srgb, rgb(var(--ev-border-rgb)) 65%, rgb(var(--ev-muted-rgb))); }
+.neu-login .form-control:focus {
+  color: rgb(var(--ev-text-rgb)); background: var(--neu-bg); outline: 0;
+  border-color: rgba(var(--ev-accent-rgb), .75);
+  box-shadow: 0 0 0 3px rgba(var(--ev-accent-rgb), .14);
+}
+/* Chrome/Edge autofill used to paint the field a lighter blue: keep it on theme */
+.neu-login .form-control:-webkit-autofill,
+.neu-login .form-control:-webkit-autofill:hover {
+  -webkit-text-fill-color: rgb(var(--ev-text-rgb)); caret-color: rgb(var(--ev-text-rgb));
+  box-shadow: 0 0 0 1000px var(--neu-bg) inset; transition: background-color 9999s ease-out 0s;
+}
+.neu-login .form-control:-webkit-autofill:focus {
+  box-shadow: 0 0 0 1000px var(--neu-bg) inset, 0 0 0 3px rgba(var(--ev-accent-rgb), .14);
+}
+.neu-login .neu-code { text-align: center; font-size: 1.5rem; letter-spacing: .5rem; padding: .7rem 1rem; }
+
+/* show / hide password */
+.neu-field .neu-eye {
+  position: absolute; right: 8px; bottom: 7px; width: 36px; height: 36px; display: grid; place-items: center;
+  border: 0; border-radius: 9px; background: transparent; color: rgb(var(--ev-muted-rgb)); cursor: pointer;
+  transition: background-color .2s ease, color .2s ease;
+}
+.neu-field .neu-eye:hover { background: rgba(var(--ev-text-rgb), .07); color: rgb(var(--ev-text-rgb)); }
+.neu-field .neu-eye:focus-visible { outline: 2px solid var(--ev-accent); outline-offset: -2px; }
+.neu-eye svg { width: 19px; height: 19px; }
+.neu-eye .eye-off { display: none; }
+.neu-eye.is-visible .eye-open { display: none; }
+.neu-eye.is-visible .eye-off { display: block; }
+.neu-field.has-eye .form-control { padding-right: 3.1rem; }
+
+/* ---- primary button: solid, no glow ---- */
+.neu-login .neu-btn {
+  width: 100%; margin-top: .5rem; padding: .8rem 1.1rem;
+  border: 0; border-radius: 12px; font-size: .95rem; font-weight: 600; letter-spacing: .01em;
+  color: rgb(var(--ev-on-color-rgb)); background: var(--ev-primary);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .12), 0 6px 14px -9px rgba(var(--ev-primary-rgb), .7);
+  transition: background-color .2s ease, transform .15s ease, box-shadow .2s ease;
+}
+.neu-login .neu-btn:hover, .neu-login .neu-btn:focus-visible {
+  color: rgb(var(--ev-on-color-rgb)); background: var(--ev-primary-hover); transform: translateY(-1px);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .14), 0 10px 18px -10px rgba(var(--ev-primary-rgb), .8);
+}
+.neu-login .neu-btn:focus-visible { outline: 2px solid var(--ev-accent); outline-offset: 3px; }
+.neu-login .neu-btn:active {
+  color: rgb(var(--ev-on-color-rgb)); transform: translateY(0);
+  background: color-mix(in srgb, var(--ev-primary) 88%, black); box-shadow: inset 0 1px 3px rgba(0, 0, 0, .3);
+}
+
+/* ---- text under the form ---- */
+.neu-help { margin: 1.6rem 0 0; padding-top: 1.2rem; border-top: 1px solid rgb(var(--ev-border-rgb)); font-size: .85rem; color: rgb(var(--ev-muted-rgb)); }
+.neu-link { display: inline-block; margin-top: 1.3rem; font-size: .88rem; font-weight: 600; text-decoration: none; color: var(--ev-accent); }
+.neu-link:hover { color: color-mix(in srgb, var(--ev-accent) 75%, white); text-decoration: underline; }
+
+/* small trust line under the card */
+.neu-foot { display: flex; align-items: center; justify-content: center; gap: .5rem; margin: 1.25rem 0 0; font-size: .8rem; color: rgb(var(--ev-muted-rgb)); }
+.neu-foot svg { width: 15px; height: 15px; color: var(--ev-accent); }
+
+@media (max-width: 480px) { .neu-card { padding: 2rem 1.25rem 1.5rem; border-radius: 16px; } }
+@media (prefers-reduced-motion: reduce) { .neu-login .neu-btn, .neu-login .form-control, .neu-login .neu-eye { transition: none; } }
+
+/* ---- OTP boxes (two-factor page) ---- */
+.otp-container { display: flex; justify-content: space-between; gap: 8px; margin: 1.5rem 0; }
+.otp-input {
+  flex: 1 1 0; min-width: 0; max-width: 52px; height: 54px; text-align: center; font-size: 1.35rem; font-weight: 600;
+  color: rgb(var(--ev-text-rgb)); background: var(--neu-bg);
+  border: 1px solid rgb(var(--ev-border-rgb)); border-radius: 12px; box-shadow: none;
+  transition: border-color .2s ease, box-shadow .2s ease;
+}
+.otp-input:focus { outline: none; border-color: rgba(var(--ev-accent-rgb), .8); box-shadow: 0 0 0 3px rgba(var(--ev-accent-rgb), .15); }
+
+/* ---- Verifying & Orbiting Boxes Animation ---- */
+.d-none { display: none !important; }
+
+.spinner-wrapper {
+  position: relative;
+  width: 140px;
+  height: 140px;
+  margin: 2.5rem auto 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.rotating-circle {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 4px solid rgba(var(--ev-primary-rgb), 0.15);
+  border-top-color: var(--ev-primary);
+  animation: spin 1.2s linear infinite;
+}
+
+.orbiting-box {
+  position: absolute;
+  width: 26px;
+  height: 26px;
+  background: var(--neu-bg);
+  border-radius: 8px;
+  box-shadow: var(--neu-raised-sm);
+  border: 1px solid rgba(var(--ev-border-rgb), 0.5);
+  animation: orbit 2.5s ease-in-out infinite;
+}
+
+.box-1 { animation-delay: 0s; }
+.box-2 { animation-delay: 0.4s; }
+.box-3 { animation-delay: 0.8s; }
+
+.percentage-text {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--ev-primary);
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes orbit {
+  0% { transform: rotate(0deg) translateX(55px) rotate(0deg); }
+  100% { transform: rotate(360deg) translateX(55px) rotate(-360deg); }
+}

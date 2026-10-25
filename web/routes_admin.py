@@ -19,8 +19,9 @@ from flask_login import current_user
 
 from auth.passwords import check_policy, hash_password
 from auth.rbac import role_required
-from auth.schnorr import generate_schnorr_keypair
+from crypto import pki
 from crypto.pki import issue_certificate
+from web import exam_store
 from web.audit_log import log_event
 from web.db import get_db
 
@@ -173,10 +174,10 @@ def register(app: Flask) -> None:
             flash(str(exc), "danger")
             return render_template("admin_user_new.html", roles=["admin", "examiner", "invigilator", "auditor"])
 
+        # Schnorr proof of key possession (plan 4.7) is OFF until its full UI exists: the user must be given
+        # the secret x once and have a local tool to build the proof. Storing only y (and throwing x away)
+        # would lock the invigilator out of share submission, so schnorr_public_y stays NULL.
         schnorr_y = None
-        if role == "invigilator":
-            _, y_val = generate_schnorr_keypair()
-            schnorr_y = str(y_val)
 
         try:
             conn.execute(
@@ -294,6 +295,35 @@ def register(app: Flask) -> None:
         flash(f"User '{user['username']}' disabled", "success")
         return redirect(url_for("admin_users"))
 
+    @app.post("/admin/users/<int:user_id>/enable")
+    @role_required("admin")
+    def admin_users_enable(user_id: int):
+        if user_id == current_user.id:
+            flash("You cannot enable yourself", "danger")
+            return redirect(url_for("admin_users"))
+
+        conn = get_db()
+        user = conn.execute("SELECT username, is_active FROM users WHERE id = ?", (user_id,)).fetchone()
+        if user is None:
+            abort(404)
+
+        if user["is_active"]:
+            flash("User is already active", "warning")
+            return redirect(url_for("admin_users"))
+
+        conn.execute("UPDATE users SET is_active = 1 WHERE id = ?", (user_id,))
+        conn.commit()
+
+        log_event(
+            conn,
+            current_user.username,
+            "user_enabled",
+            {"target_user_id": user_id, "target_username": user["username"]},
+        )
+
+        flash(f"User '{user['username']}' enabled", "success")
+        return redirect(url_for("admin_users"))
+
     @app.post("/admin/users/<int:user_id>/revoke")
     @role_required("admin")
     def admin_users_revoke(user_id: int):
@@ -313,10 +343,15 @@ def register(app: Flask) -> None:
 
         with conn:
             conn.execute("UPDATE users SET is_active = 0 WHERE id = ?", (user_id,))
-            conn.execute(
-                "UPDATE certificates SET revoked_at = ? WHERE user_id = ? AND revoked_at IS NULL",
-                (datetime.now(timezone.utc).isoformat(), user_id),
-            )
+        # Plan 6.5/6.6: every live certificate of this user goes onto a fresh CA-signed CRL (and is audited).
+        serials = [
+            r["serial"]
+            for r in conn.execute(
+                "SELECT serial FROM certificates WHERE user_id = ? AND revoked_at IS NULL", (user_id,)
+            ).fetchall()
+        ]
+        for serial in serials:
+            pki.revoke(conn, serial, REVOKE_REASONS[reason], actor=current_user.username)
 
         log_event(
             conn,
@@ -340,7 +375,17 @@ def register(app: Flask) -> None:
     @app.post("/admin/exams/<exam_id>/rotate")
     @role_required("admin")
     def admin_rotate_exam(exam_id: str):
+        """Rotation request. Honest behaviour: real rotation needs a quorum ceremony (plan 3.7: k current
+        holders unwrap their shares so the master secret can be rebuilt in memory), which is not built yet.
+        Until then NO shares are changed, and the page and the audit log say exactly that.
+        """
         conn = get_db()
-        flash(f"Shares for exam {exam_id} successfully rotated.", "success")
-        log_event(conn, current_user.username, "shares_rotated", {"exam_id": exam_id})
+        if exam_store.get_exam(exam_id) is None:
+            abort(404)
+        log_event(conn, current_user.username, "rotation_requested", {"exam_id": exam_id, "performed": False})
+        flash(
+            f"Rotation for exam {exam_id} was NOT performed: the quorum ceremony is not available yet. "
+            "No shares were changed; the request has been recorded in the audit log.",
+            "warning",
+        )
         return redirect(url_for("admin_rotations"))

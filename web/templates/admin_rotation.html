@@ -3,6 +3,10 @@
 <div class="container mt-4">
     <h2>Key & Share Rotation Dashboard (Plan 3.7)</h2>
     <p class="text-muted">Manage share rotation for exams affected by user revocations or compromised keys.</p>
+    <div class="alert alert-warning" role="alert">
+        Rotation needs a quorum ceremony (k current holders, plan 3.7) that is not built yet.
+        Pressing the button below only records a request in the audit log. <strong>No shares are changed.</strong>
+    </div>
     
     <hr>
     <h4>Revoked / Compromised Users</h4>
@@ -31,7 +35,7 @@
                 <td>
                     <form action="{{ url_for('admin_rotate_exam', exam_id=exam.exam_id) }}" method="POST">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <button type="submit" class="btn btn-warning btn-sm">Trigger Rotation</button>
+                        <button type="submit" class="btn btn-warning btn-sm">Request Rotation</button>
                     </form>
                 </td>
             </tr>

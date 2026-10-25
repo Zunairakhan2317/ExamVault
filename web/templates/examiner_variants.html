@@ -15,7 +15,7 @@
       {% endfor %}
     </select>
   </div>
-  <div class="col-md-4 d-flex align-items-end"><button class="btn btn-outline-primary" type="submit">Show</button></div>
+  <div class="col-md-4 d-flex align-items-end"><button class="btn btn-primary" type="submit">Show</button></div>
 </form>
 
 {% if slots is none %}
@@ -27,7 +27,7 @@
   {% if total < minimum %}<div class="alert alert-warning mt-2 mb-0">Need at least {{ minimum }} slots</div>{% endif %}
 </div></div>
 
-<div class="alert alert-secondary">Dono variants ka matlab, marks aur numbers bilkul same hone chahiye.</div>
+<div class="alert alert-secondary">Variants means shuffled versions of the same question with same marks and numbers.</div>
 
 <ul class="nav nav-pills mb-3">
   {% for key, label in [('all', 'All'), ('reviewed', 'Reviewed'), ('doubtful', 'Doubtful')] %}
@@ -61,8 +61,8 @@
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="slot_id" value="{{ s.slot_id }}">
             <input type="hidden" name="filter" value="{{ flt }}">
-            <button class="btn btn-sm btn-outline-success" name="action" value="reviewed" type="submit">Mark reviewed</button>
-            <button class="btn btn-sm btn-outline-danger" name="action" value="doubtful" type="submit">Flag doubtful</button>
+            <button class="btn btn-sm btn-action btn-action--success" name="action" value="reviewed" type="submit">Mark reviewed</button>
+            <button class="btn btn-sm btn-action btn-action--danger" name="action" value="doubtful" type="submit">Flag doubtful</button>
           </form>
         </td>
       </tr>
@@ -75,5 +75,7 @@
 {% endif %}
 {% endif %}
 {% endif %}
-<a class="btn btn-outline-secondary" href="{{ url_for('examiner_upload') }}">Back to upload</a>
+<div class="d-flex justify-content-between align-items-center mt-3 pt-2 border-top">
+  <a class="btn btn-primary" href="{{ url_for('examiner_upload') }}">Back to upload</a>
+</div>
 {% endblock %}

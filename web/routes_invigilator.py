@@ -9,6 +9,7 @@ import hmac
 import io
 import os
 import secrets
+import time
 from pathlib import Path
 from typing import Callable
 
@@ -20,11 +21,19 @@ from flask_login import current_user
 
 from auth.rbac import role_required
 from auth.schnorr import verify_schnorr_proof
+from crypto import pki
 from web import copy_service, exam_store, share_flow
 from web.audit_log import log_event
 from web.db import get_db
 
 DEFAULT_EXAMINER_PUBLIC_KEY = "keys/examiner_signing_public.pem"
+
+# Plan 4.7: the Schnorr proof of key possession stays OFF until its full UI exists (the invigilator is given the
+# secret x once, and a local tool builds the proof for the submit-page fields). While False, nobody is blocked.
+SCHNORR_ENABLED = False
+
+# A share-submission page (nonce + timestamp) is only valid this long: shrinks the replay window.
+NONCE_MAX_AGE_SECONDS = 300
 
 
 def _examiner_key_loader() -> Callable[[], Ed25519PublicKey]:
@@ -72,7 +81,8 @@ def register(app: Flask) -> None:
         conn = get_db()
         if request.method == "GET":
             nonce = secrets.token_urlsafe(24)
-            timestamp = str(int(os.getenv("TEST_TIMESTAMP", "0")) or int(secrets.randbelow(1000000000)))
+            # Real server UTC time (never a random number, never a browser value). TEST_TIMESTAMP is test-only.
+            timestamp = str(int(os.getenv("TEST_TIMESTAMP", "0")) or int(time.time()))
             session["share_nonce"] = {"exam": exam_id, "nonce": nonce, "timestamp": timestamp}
             return render_template("submit_share.html", view=_view(exam), nonce=nonce, timestamp=timestamp)
 
@@ -87,9 +97,20 @@ def register(app: Flask) -> None:
             flash("Request expired. Please try again.", "warning")
             return redirect(f"/invigilator/submit-share/{exam_id}")
 
-        # Verify Schnorr ZKP proof of key possession (P10)[cite: 22, 37]
+        # Replay window: the page that carried this nonce must be recent (server clock only).
+        if not os.getenv("TEST_TIMESTAMP"):
+            try:
+                issued_at = int(str(expected.get("timestamp", "")))
+            except ValueError:
+                issued_at = 0
+            if abs(int(time.time()) - issued_at) > NONCE_MAX_AGE_SECONDS:
+                log_event(conn, current_user.username, "share_refused", {"exam_id": exam_id, "reason": "nonce_expired"})
+                flash("Request expired. Please try again.", "warning")
+                return redirect(f"/invigilator/submit-share/{exam_id}")
+
+        # Verify Schnorr proof of key possession (plan 4.7), only when enabled and the user has a public y.
         user_row = conn.execute("SELECT schnorr_public_y FROM users WHERE id = ?", (current_user.id,)).fetchone()
-        if user_row and user_row["schnorr_public_y"] is not None:
+        if SCHNORR_ENABLED and user_row and user_row["schnorr_public_y"] is not None:
             try:
                 t_val = int(request.form.get("schnorr_t", "0"))
                 s_val = int(request.form.get("schnorr_s", "0"))
@@ -157,10 +178,7 @@ def register(app: Flask) -> None:
         conn = get_db()
         if not exam_store.is_released(conn, exam_id):
             abort(404)
-        revoked = conn.execute(
-            "SELECT 1 FROM certificates WHERE user_id = ? AND revoked_at IS NOT NULL", (current_user.id,)
-        ).fetchone()
-        if revoked is not None:
+        if not pki.user_certificate_ok(conn, current_user.id):  # certificate + CRL check (plan 6.6)
             log_event(conn, current_user.username, "copy_refused", {"exam_id": exam_id, "reason": "revoked"})
             abort(403)
         data_dir, key = _copy_storage()

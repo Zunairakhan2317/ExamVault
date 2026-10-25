@@ -1,95 +1,186 @@
 {% extends "base.html" %}
+{% from "icons.html" import ico %}
 {% block title %}Dashboard - ExamVault{% endblock %}
+{% block head %}
+  <link href="{{ url_for('static', filename='dashboard.css') }}" rel="stylesheet">
+{% endblock %}
 {% block content %}
-{% if show_alert_banner %}
-<div class="alert alert-danger">
-  <strong>Security alert:</strong> {{ stats.alerts }} open alert{{ '' if stats.alerts == 1 else 's' }}.
-  {% if current_user.role == 'admin' %}<a class="alert-link" href="/admin/alerts">View alerts</a>{% endif %}
-</div>
-{% endif %}
+{#- ---------- small helpers ---------- -#}
+{% macro pill(label, badge) %}<span class="pill pill-{{ badge or 'secondary' }}">{{ label }}</span>{% endmacro %}
+{% macro window(e) %}{{ (e.start_utc|string)[:16]|replace('T', ' ') }} to {{ (e.end_utc|string)[:16]|replace('T', ' ') }} UTC{% endmacro %}
+{% macro kpi(label, value, icon, tone, href='', foot='', alert=False) %}
+  <{{ 'a' if href else 'div' }} class="kpi tone-{{ tone }}{% if alert %} is-alert{% endif %}"{% if href %} href="{{ href }}"{% endif %}>
+    <span class="kpi-ico">{{ ico(icon) }}</span>
+    <span class="kpi-body">
+      <span class="kpi-label">{{ label }}</span>
+      <span class="kpi-value">{% if value is number %}{{ '{:,}'.format(value) }}{% else %}{{ value if value is not none else '-' }}{% endif %}</span>
+      {% if foot %}<span class="kpi-foot">{{ foot }}{% if href %}{{ ico('arrow') }}{% endif %}</span>{% endif %}
+    </span>
+  </{{ 'a' if href else 'div' }}>
+{% endmacro %}
+{% macro qa(href, icon, title, text) %}
+  <a class="qa" href="{{ href }}">
+    <span class="qa-ico">{{ ico(icon) }}</span>
+    <span class="qa-body"><span class="qa-title">{{ title }}</span><span class="qa-text">{{ text }}</span></span>
+    <span class="qa-go">{{ ico('arrow') }}</span>
+  </a>
+{% endmacro %}
+{% macro meter(done, total) %}
+  <div class="meter-row">
+    <progress class="meter" max="{{ total if total else 1 }}" value="{{ done or 0 }}"></progress>
+    <span class="meter-text">{{ done or 0 }} / {{ total }} shares</span>
+  </div>
+{% endmacro %}
 
-<h1 class="h4">Welcome, {{ current_user.full_name }}
-  <span class="badge text-bg-secondary">{{ current_user.role }}</span></h1>
-<p class="text-muted">Last login: {{ last_login[:19].replace('T', ' ') ~ ' UTC' if last_login else 'first login' }}</p>
+{% set role = current_user.role %}
+{% set parts = (current_user.full_name or current_user.username).split(' ') %}
+{#- skip a leading title such as "Dr." so the greeting says "Welcome back, Aris" -#}
+{% set first = parts[1] if (parts|length > 1 and parts[0].endswith('.')) else parts[0] %}
+{% set last = (last_login[:19]|replace('T', ' ') ~ ' UTC') if last_login else 'first login' %}
 
-<div class="row mt-4 g-3">
-  {% if current_user.role == 'admin' %}
-    <div class="col-md-3"><div class="card"><div class="card-body">
-      <div class="text-muted">Total users</div><div class="fs-2">{{ stats.users if stats.users is not none else '-' }}</div></div></div></div>
-    <div class="col-md-3"><div class="card"><div class="card-body">
-      <div class="text-muted">Active exams</div><div class="fs-2">{{ stats.active_exams if stats.active_exams is not none else '-' }}</div></div></div></div>
-    <div class="col-md-3"><div class="card"><div class="card-body">
-      <div class="text-muted">Revoked certificates</div><div class="fs-2">{{ stats.revoked if stats.revoked is not none else '-' }}</div></div></div></div>
-    <div class="col-md-3"><div class="card {% if stats.alerts %}border-danger{% endif %}"><div class="card-body">
-      <div class="text-muted">Open alerts</div><div class="fs-2 {% if stats.alerts %}text-danger{% endif %}">{{ stats.alerts if stats.alerts is not none else '-' }}</div></div></div></div>
-    <div class="col-12">
-      <a class="btn btn-primary" href="/admin/users/new">Add user</a>
-      <a class="btn btn-outline-secondary" href="/admin/alerts">View alerts</a>
+<header class="dash-head">
+  <div>
+    <h1 class="dash-title">Welcome, {{ first }}</h1>
+    <p class="dash-meta">{{ ico('clock') }} Last login: {{ last }}</p>
+  </div>
+  <div class="dash-actions">
+    {% if role == 'admin' %}
+      <a class="dbtn dbtn-primary" href="/admin/users/new">{{ ico('plus') }} Add user</a>
+    {% elif role == 'examiner' %}
+      <a class="dbtn dbtn-primary" href="/examiner/upload">{{ ico('upload') }} Upload new exam</a>
+    {% endif %}
+  </div>
+</header>
+
+{# ================================ ADMIN ================================ #}
+{% if role == 'admin' %}
+  <section class="kpi-grid" aria-label="System overview">
+    {{ kpi('Total users', stats.users, 'users', 'primary', '/admin/users', 'Manage users') }}
+    {{ kpi('Active exams', stats.active_exams, 'file', 'info') }}
+    {{ kpi('Revoked certificates', stats.revoked, 'key', 'warning', '/admin/users', 'View users') }}
+    {{ kpi('Open alerts', stats.alerts, 'bell', ('danger' if stats.alerts else 'success'), '/admin/alerts', ('Needs review' if stats.alerts else 'All clear'), alert=(stats.alerts|default(0) > 0)) }}
+  </section>
+
+  <div class="dash-section"><h2 class="dash-h2">Quick actions</h2></div>
+  <section class="qa-grid">
+    {{ qa('/admin/rotations', 'key', 'Key rotation', 'Re-issue shares for an exam') }}
+    {{ qa('/files', 'folder', 'Files', 'Browse stored files') }}
+    {{ qa('/demo/ecb', 'activity', 'ECB vs GCM demo', 'See why the cipher mode matters') }}
+  </section>
+
+{# ================================ EXAMINER ================================ #}
+{% elif role == 'examiner' %}
+  {% set mine = exams|selectattr('is_active')|list %}
+  {% set live = mine|selectattr('status_label', 'equalto', 'Window open')|list %}
+  {% set done = mine|selectattr('status_label', 'equalto', 'Released')|list %}
+  {% set upcoming = mine|selectattr('status_label', 'in', ['Window open', 'Encrypted'])|sort(attribute='start_utc')|list %}
+  {% set nx = examiner_stats.get('next_exam') or (upcoming[0] if upcoming else none) %}
+
+  <section class="kpi-grid" aria-label="My exams">
+    {{ kpi('My exams', examiner_stats.get('my_exams_count', mine|length), 'file', 'primary') }}
+    {{ kpi('Window open now', live|length, 'clock', 'warning') }}
+    {{ kpi('Released', done|length, 'check', 'success') }}
+  </section>
+
+  <div class="dash-section"><h2 class="dash-h2">Next exam</h2></div>
+  {% if nx %}
+  <section class="hero">
+    <div class="hero-main">
+      <div class="hero-top">{{ pill(nx.status_label, nx.badge) }}{% if nx.subject %}<span class="hero-subject">{{ nx.subject }}</span>{% endif %}</div>
+      <h3 class="hero-title">{{ nx.title }}</h3>
+      <p class="hero-meta">{{ ico('clock') }} {{ window(nx) }}</p>
+      {{ meter(nx.submitted_shares, nx.threshold) }}
     </div>
-  {% elif current_user.role == 'examiner' %}
-    <div class="col-md-6"><div class="card"><div class="card-body">
-      <div class="text-muted">My exams</div>
-      {% if examiner_stats.get('my_exams_count') is not none %}
-      <div class="fs-2">{{ examiner_stats.my_exams_count }}</div>
-      {% else %}
-      <div class="fs-2">-</div>
-      {% endif %}
-      <div class="small text-muted">{% if examiner_stats.get('my_exams_count') is not none and examiner_stats.my_exams_count == 0 %}No exams yet. Upload your first exam.{% endif %}</div></div></div></div>
-    <div class="col-md-6"><div class="card"><div class="card-body">
-      <div class="text-muted">Next exam</div>
-      {% if examiner_stats.get('next_exam') %}
-      <div class="fs-2">{{ examiner_stats.next_exam.exam_id[:8] }}...</div>
-      <div class="small text-muted">{{ examiner_stats.next_exam.start_utc }} to {{ examiner_stats.next_exam.end_utc }}</div>
-      {% else %}
-      <div class="fs-2">-</div>
-      <div class="small text-muted">No upcoming exam.</div>
-      {% endif %}
-      </div></div></div>
-    <div class="col-12"><a class="btn btn-primary" href="/examiner/upload">Upload new exam</a></div>
-    <div class="col-12"><div class="card">
-      <div class="card-header">Last 5 exams</div>
-      <div class="card-body">
-        {% if examiner_stats.get('recent_exams') %}
-        <ul class="list-group list-group-flush">
-          {% for exam in examiner_stats.recent_exams %}
-          <li class="list-group-item small">
-            <code>{{ exam.exam_id[:8] }}...</code>:
-            {{ exam.start_utc }} to {{ exam.end_utc }} -
-            {{ exam.title|default('(untitled)') }}
-          </li>
-          {% endfor %}
-        </ul>
-        {% else %}
-        <div class="text-muted">No exams yet. Upload your first exam.</div>
-        {% endif %}
-      </div>
-    </div></div>
-  {% elif current_user.role == 'invigilator' %}
-    <div class="col-12"><div class="card">
-      <div class="card-header">Upcoming exams</div>
-      {% if exams %}
-      <ul class="list-group list-group-flush">
-        {% for e in exams %}
-        <li class="list-group-item d-flex justify-content-between align-items-center">
-          <span><code>{{ e.exam_id }}</code><br>
-            <small class="text-muted">{{ e.start_utc }} to {{ e.end_utc }}</small></span>
-          <span><span class="badge text-bg-{{ e.badge }} me-2">{{ e.label }}</span>
-            <a class="btn btn-sm btn-primary" href="/invigilator/exam/{{ e.exam_id }}">Open</a></span>
-        </li>
-        {% endfor %}
-      </ul>
-      {% else %}
-      <div class="card-body text-muted">No exams yet.</div>
-      {% endif %}
-    </div></div>
-  {% elif current_user.role == 'auditor' %}
-    <div class="col-md-4"><div class="card"><div class="card-body">
-      <div class="text-muted">Last verification</div><div class="fs-5">Not run yet</div></div></div></div>
-    <div class="col-md-4"><div class="card"><div class="card-body">
-      <div class="text-muted">Total log entries</div><div class="fs-2">{{ stats.log_entries if stats.log_entries is not none else '-' }}</div></div></div></div>
-    <div class="col-md-4"><div class="card"><div class="card-body">
-      <div class="text-muted">Last daily root date</div><div class="fs-5">{{ stats.last_root_date or '-' }}</div></div></div></div>
-    <div class="col-12"><a class="btn btn-primary" href="/auditor/verify">Run verification</a></div>
+    <div class="hero-side">
+      <a class="btn btn-primary" href="/examiner/exams/{{ nx.exam_id }}">Open exam {{ ico('arrow') }}</a>
+    </div>
+  </section>
+  {% else %}
+  <section class="panel"><div class="empty">
+    <span class="empty-ico">{{ ico('clock') }}</span>
+    <p>No upcoming exam. Schedule one by uploading a paper.</p>
+    <a class="dbtn dbtn-ghost" href="/examiner/upload">{{ ico('upload') }} Upload new exam</a>
+  </div></section>
   {% endif %}
-</div>
+
+  <div class="dash-section"><h2 class="dash-h2">Recent exams</h2><a class="dash-link" href="/examiner/exams">View all {{ ico('arrow') }}</a></div>
+  <section class="panel">
+    {% if examiner_stats.get('recent_exams') %}
+    <div class="table-wrap"><table class="dash-table">
+      <thead><tr><th>Exam</th><th>Window (UTC)</th><th>Status</th><th>Shares</th><th></th></tr></thead>
+      <tbody>
+      {% for e in examiner_stats.recent_exams %}
+        <tr>
+          <td><span class="cell-title">{{ e.title }}</span>{% if e.subject %}<span class="cell-sub">{{ e.subject }}</span>{% endif %}</td>
+          <td class="cell-mono">{{ window(e) }}</td>
+          <td>{{ pill(e.status_label, e.badge) }}</td>
+          <td class="cell-num">{{ e.submitted_shares }} / {{ e.threshold }}</td>
+          <td class="cell-end"><a class="row-link" href="/examiner/exams/{{ e.exam_id }}" aria-label="Open {{ e.title }}">{{ ico('arrow') }}</a></td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table></div>
+    {% else %}
+    <div class="empty">
+      <span class="empty-ico">{{ ico('file') }}</span>
+      <p>No exams yet. Upload your first exam to get started.</p>
+      <a class="btn btn-primary" href="/examiner/upload">{{ ico('upload') }} Upload new exam</a>
+    </div>
+    {% endif %}
+  </section>
+
+{# ================================ INVIGILATOR ================================ #}
+{% elif role == 'invigilator' %}
+  {% set live = exams|selectattr('status', 'equalto', 'open')|list %}
+  {% set sent = exams|selectattr('submitted')|list %}
+
+  <section class="kpi-grid" aria-label="My exams">
+    {{ kpi('Assigned exams', exams|length, 'file', 'primary') }}
+    {{ kpi('Window open', live|length, 'clock', ('warning' if live else 'info')) }}
+    {{ kpi('Shares submitted', sent|length, 'check', 'success') }}
+  </section>
+
+  {% macro exam_card(e, is_live) %}
+  <article class="exam-card{% if is_live %} is-live{% endif %}">
+    <div class="exam-top">{{ pill(e.label, e.badge) }}{% if is_live %}<span class="live-tag">Act now</span>{% endif %}</div>
+    <h3 class="exam-title">Exam <span class="cell-mono" title="{{ e.exam_id }}">{{ e.exam_id[:8] }}</span></h3>
+    <p class="hero-meta">{{ ico('clock') }} {{ window(e) }}</p>
+    {{ meter(e.received, e.threshold) }}
+    <a class="dbtn {{ 'dbtn-primary' if is_live else 'dbtn-ghost' }} exam-btn" href="/invigilator/exam/{{ e.exam_id }}">Open {{ ico('arrow') }}</a>
+  </article>
+  {% endmacro %}
+
+  <div class="dash-section"><h2 class="dash-h2">My exams</h2></div>
+  {% if exams %}
+  <section class="exam-grid">
+    {% for e in exams if e.status == 'open' and not e.submitted and not e.released %}{{ exam_card(e, true) }}{% endfor %}
+    {% for e in exams if not (e.status == 'open' and not e.submitted and not e.released) %}{{ exam_card(e, false) }}{% endfor %}
+  </section>
+  {% else %}
+  <section class="panel"><div class="empty">
+    <span class="empty-ico">{{ ico('file') }}</span>
+    <p>No exams assigned to you yet. They will appear here when you are chosen as a key holder.</p>
+  </div></section>
+  {% endif %}
+
+{# ================================ AUDITOR ================================ #}
+{% elif role == 'auditor' %}
+  <section class="kpi-grid" aria-label="Audit overview">
+    {{ kpi('Log entries', stats.log_entries, 'list', 'primary', '/auditor/log', 'Open audit log') }}
+    {{ kpi('Last daily root', stats.last_root_date or '-', 'hash', 'info', '/auditor/roots', 'Daily roots') }}
+    {{ kpi('Open alerts', stats.alerts, 'bell', ('danger' if stats.alerts else 'success'), alert=(stats.alerts|default(0) > 0)) }}
+  </section>
+
+  <section class="hero hero-verify">
+    <div class="hero-main">
+      <div class="hero-top"><span class="hero-ico">{{ ico('shield') }}</span></div>
+      <h3 class="hero-title">Verify audit log integrity</h3>
+      <p class="hero-meta">Check the hash chain and the daily Merkle roots to confirm nothing has been altered.</p>
+    </div>
+    <div class="hero-side">
+      <a class="dbtn dbtn-primary" href="/auditor/verify">Run verification {{ ico('arrow') }}</a>
+    </div>
+  </section>
+
+{% endif %}
 {% endblock %}

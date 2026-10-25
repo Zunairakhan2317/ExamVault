@@ -20,7 +20,6 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import ed25519, rsa
 from dotenv import load_dotenv
 
-from auth.schnorr import generate_schnorr_keypair
 from crypto.services import paper_service
 from web import exam_store
 from web.audit_log import log_event
@@ -44,16 +43,9 @@ def _write_private(path: Path, pem: bytes) -> None:
 
 
 def ensure_rsa_public_key(username: str, conn: sqlite3.Connection, user_id: int) -> rsa.RSAPublicKey:
-    """Return the holder's RSA-3072 public key, creating the keypair files and Schnorr y if needed."""
+    """Return the holder's RSA-3072 public key, creating the keypair files if needed."""
     private_path = KEYS_DIR / f"{username}_private.pem"
     public_path = KEYS_DIR / f"{username}_public.pem"
-    
-    # Ensure user has a Schnorr public key for P10 stored as string
-    row = conn.execute("SELECT schnorr_public_y FROM users WHERE id = ?", (user_id,)).fetchone()
-    if not row or row["schnorr_public_y"] is None:
-        _, y_val = generate_schnorr_keypair()
-        conn.execute("UPDATE users SET schnorr_public_y = ? WHERE id = ?", (str(y_val), user_id))
-        conn.commit()
 
     if public_path.exists():
         key = serialization.load_pem_public_key(public_path.read_bytes())

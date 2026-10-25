@@ -2,9 +2,12 @@
 from tests.test_web_auth import db_value, login_fully, make_config, make_user
 from web.app import create_app
 from web.db import get_connection
+from crypto.services import paper_service
 
 
 def _login(tmp_path, role, username="u1"):
+    """Isolate the paper service DB so the examiner dashboard shows zero exams."""
+    paper_service.DATABASE_PATH = tmp_path / "paper.db"
     app = create_app(make_config(tmp_path))
     secret = make_user(app, username, role)
     client = app.test_client()
@@ -50,7 +53,7 @@ def test_admin_cards_buttons_and_no_banner_without_alerts(tmp_path):
     _app, client = _login(tmp_path, "admin")
     page = client.get("/dashboard").data
     for text in (b"Total users", b"Active exams", b"Revoked certificates", b"Open alerts",
-                 b"Add user", b"View alerts"):
+                 b"Add user", b"Key rotation"):
         assert text in page
     assert b"Security alert" not in page
 
@@ -59,15 +62,18 @@ def test_alert_banner_and_red_card_for_admin_and_auditor_only(tmp_path):
     app, admin = _login(tmp_path, "admin", "adm")
     _add_alert(app)
     page = admin.get("/dashboard").data
-    assert b"Security alert" in page and b"border-danger" in page
+    # Alerts now appear via KPI card with alert styling
+    assert b"Open alerts" in page and b"tone-danger" in page
     secret = make_user(app, "aud", "auditor")
     auditor = app.test_client()
     login_fully(auditor, secret, "aud")
-    assert b"Security alert" in auditor.get("/dashboard").data
+    page_a = auditor.get("/dashboard").data
+    assert b"Open alerts" in page_a and b"tone-danger" in page_a
     secret = make_user(app, "inv", "invigilator")
     inv = app.test_client()
     login_fully(inv, secret, "inv")
-    assert b"Security alert" not in inv.get("/dashboard").data
+    page_i = inv.get("/dashboard").data
+    assert b"Security alert" not in page_i
 
 
 def test_examiner_dashboard_cards_and_empty_state(tmp_path):
@@ -81,10 +87,10 @@ def test_examiner_dashboard_cards_and_empty_state(tmp_path):
 def test_auditor_dashboard_cards(tmp_path):
     app, client = _login(tmp_path, "auditor")
     page = client.get("/dashboard").data
-    for text in (b"Last verification", b"Total log entries", b"Last daily root date",
+    for text in (b"Log entries", b"Last daily root", b"Open alerts", b"Verify audit log integrity",
                  b"Run verification"):
         assert text in page
-    assert b"Not run yet" in page
+    assert b"Not run yet" not in page  # auditor dashboard uses KPI cards, not the old card layout
 
 
 def test_dashboard_has_no_inline_script_or_style(tmp_path):

@@ -3,7 +3,7 @@ tests/test_schnorr.py
 
 Unit tests for the Schnorr ZKP module.
 Proves that valid proofs are accepted, invalid proofs/secrets are rejected, 
-and replayed or modified nonces fail verification[cite: 22, 37].
+and replayed or modified nonces fail verification.
 """
 
 import pytest

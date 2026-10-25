@@ -205,7 +205,7 @@ def test_replayed_nonce_is_refused(env):
     pem = private_pem(env.rsa["inv1"])
     assert b"Share verified and accepted" in post_share(client, exam_id, pem, nonce).data
     with client.session_transaction() as sess:  # an attacker replays the captured request
-        sess["share_nonce"] = {"exam": exam_id, "nonce": nonce}
+        sess["share_nonce"] = {"exam": exam_id, "nonce": nonce, "timestamp": str(int(time.time()))}
     again = post_share(client, exam_id, pem, nonce)
     assert b"already used" in again.data and env.pending.count(exam_id) == 1
 
@@ -291,8 +291,10 @@ def test_wrong_examiner_key_blocks_release(env, tmp_path):
 def test_dashboard_lists_the_exam_for_an_invigilator(env):
     exam_id = make_exam(env)
     page = env.client("inv2").get("/dashboard")
-    assert page.status_code == 200 and b"Upcoming exams" in page.data
-    assert exam_id.encode() in page.data and b"Window open" in page.data
+    assert page.status_code == 200 and b"Window open" in page.data  # KPI shows window open now
+    assert exam_id.encode() in page.data
+    # The exam card must link to the exam page (checks the link, not the button's wording)
+    assert f"/invigilator/exam/{exam_id}".encode() in page.data
 
 
 def test_pending_store_forgets_expired_entries():
@@ -303,3 +305,63 @@ def test_pending_store_forgets_expired_entries():
     assert store.count("e1") == 1
     store.clear("e1")
     assert store.count("e1") == 0
+
+
+
+# --- review fixes: real timestamp, replay window, CRL-based refusal ------------------------------------
+
+def test_submit_page_timestamp_is_real_server_time(env, monkeypatch):
+    import time as _time
+
+    monkeypatch.delenv("TEST_TIMESTAMP", raising=False)
+    exam_id = make_exam(env)
+    client = env.client(USERS[0])
+    get_nonce(client, exam_id)
+    with client.session_transaction() as sess:
+        issued = int(sess["share_nonce"]["timestamp"])
+    assert abs(issued - int(_time.time())) < 10  # not a random number
+
+
+def test_old_submit_page_nonce_is_refused_after_five_minutes(env, monkeypatch):
+    import time as _time
+
+    monkeypatch.delenv("TEST_TIMESTAMP", raising=False)
+    exam_id = make_exam(env)
+    client = env.client(USERS[0])
+    nonce = get_nonce(client, exam_id)
+    with client.session_transaction() as sess:
+        data = dict(sess["share_nonce"])
+        data["timestamp"] = str(int(_time.time()) - 3600)
+        sess["share_nonce"] = data
+    page = post_share(client, exam_id, private_pem(env.rsa[USERS[0]]), nonce)
+    assert "Request expired" in page.get_data(as_text=True)
+    assert "nonce_expired" in audit_text(env)
+    assert env.conn.execute("SELECT COUNT(*) FROM share_submissions").fetchone()[0] == 0
+
+
+def test_invigilator_with_schnorr_key_is_not_blocked_while_schnorr_is_off(env):
+    """A stored schnorr_public_y must not stop share submission until the Schnorr UI exists."""
+    exam_id = make_exam(env)
+    env.conn.execute("UPDATE users SET schnorr_public_y = '12345' WHERE username = ?", (USERS[0],))
+    env.conn.commit()
+    page = submit_as(env, USERS[0], exam_id)
+    assert "ZKP key possession proof failed" not in page.get_data(as_text=True)
+    assert env.conn.execute("SELECT COUNT(*) FROM share_submissions").fetchone()[0] == 1
+
+
+def test_revoked_certificate_is_refused_through_the_crl(env):
+    from crypto import pki
+
+    exam_id = make_exam(env)
+    name = USERS[0]
+    serial, pem = pki.issue_certificate(name, "invigilator", public_pem(env.rsa[name].public_key()))
+    env.conn.execute(
+        "INSERT INTO certificates (serial, user_id, pem, issued_at) VALUES (?, ?, ?, ?)",
+        (serial, env.ids[name], pem, "2026-10-25T00:00:00"),
+    )
+    env.conn.commit()
+    pki.revoke(env.conn, serial, "Left job", actor="admin1")
+    page = submit_as(env, name, exam_id)
+    assert "revoked" in page.get_data(as_text=True).lower()
+    assert "revoked_certificate" in audit_text(env)
+    assert env.conn.execute("SELECT COUNT(*) FROM share_submissions").fetchone()[0] == 0

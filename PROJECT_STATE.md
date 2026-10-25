@@ -30,13 +30,13 @@ Folders: crypto/, auth/, tracing/, audit/, demo/, web/, tests/, keys/ (git-ignor
 
 ## 3. Current status (EDIT THIS EVERY SESSION)
 
-- Date of last update: 2026-10-10
-- Tool used last: Claude (updated PROJECT_STATE.md to reflect final project state)
+- Date of last update: 2026-10-25
+- Tool used last: Claude (review fixes #1 to #4: Schnorr off, honest rotation page, CRL wiring, small bugs)
 - Current phase: Layers 1-4 fully implemented and all 286 unit tests passing; Web application UI fully integrated; Layer 5 demos deferred
 - Last completed module: Full project integration - admin users, user revocation, key rotation admin screen, examiner upload/variants, invigilator countdown/share submission, auditor log verification
 - Currently working on: nothing in progress
 - NEXT STEP: Prepare for final demonstration; optional Layer 5 demos (honeytoken, ECB vs GCM, redteam) if time permits
-- Tests passing: 286 / 286 (100%)
+- Tests passing: NOT re-run after the 2026-10-25 fixes (the sandbox had no network, so pytest could not be installed). 12 new tests were added; run `python -m pytest -q` and write the real count here.
 - Last git commit message: Updated PROJECT_STATE.md to reflect final project state
 
 ## 4. Master checklist
@@ -68,8 +68,8 @@ Folders: crypto/, auth/, tracing/, audit/, demo/, web/, tests/, keys/ (git-ignor
 - [x] 6.2 merkle.py (root, proofs)
 - [x] 6.3 daily_root.py (signed daily root)
 - [x] 6.4 verifier.py (names exact altered entries and validates signed daily roots)
-- [x] 6.5 pki.py (root CA, certificates, CRL, revocation wiring into login/share/download)
-- [x] 6.6 Revocation wired into login, share submission, and copy download
+- [x] 6.5 pki.py (root CA, certificates, signed CRL: revoke(conn, serial, reason), current_crl_pem(conn), user_certificate_ok(conn, user_id))
+- [x] 6.6 Revocation wired into login (password step and after 2FA), share submission, copy download, and the admin Revoke action (signed CRL in keys/crl.pem)
 
 ### Layer 2: Access control (auth/)
 
@@ -79,7 +79,7 @@ Folders: crypto/, auth/, tracing/, audit/, demo/, web/, tests/, keys/ (git-ignor
 - [x] 4.4 lockout.py + Flask-Limiter
 - [x] 4.5 timewindow.py (server UTC only)
 - [x] 4.6 Share submission flow (one-time nonce, Feldman check, release at k shares) - web/share_flow.py, tested; personal copy waits for Layer 3
-- [x] 4.7 schnorr.py (Fiat-Shamir proof of key possession) - module wired into admin user creation, share submission, and submit page
+- [~] 4.7 schnorr.py (Fiat-Shamir proof of key possession) - module and tests done, but the feature is OFF (routes_invigilator.SCHNORR_ENABLED = False; new users get schnorr_public_y NULL). Still to build: give the user x once, a local proof tool, submit-page fields.
 - [x] 4.8 timelock.py (STRETCH, deferred)
 
 ### Layer 3: Leak tracing (tracing/)
@@ -144,11 +144,14 @@ Open:
 - FIXED: admin usernames are restricted to [a-z0-9][a-z0-9_.-]{2,31} (they become file names); the page that shows a temporary password is sent with Cache-Control: no-store.
 - FIXED: demo/make_demo_exam.py never replaces an existing public key.
 - Cleanup for the leader: delete keys/jake_*.pem and keys/kevin_*.pem if those were only test users; regenerate SECRET_KEY and TOTP_ENCRYPTION_KEY in .env if the project zip (with .env and keys/) was shared.
-- Revoke only disables the user; Revoked status needs certificates (PKI 6.5).
+- FIXED (2026-10-25): Revoke now disables the user AND calls pki.revoke for every live certificate (signed CRL + audit entry `certificate_revoked`).
+- FIXED (2026-10-25): Schnorr no longer blocks invigilators (feature off, see 4.7). Existing rows with a stored y are ignored too.
+- FIXED (2026-10-25): /admin/exams/<id>/rotate no longer says "successfully rotated"; it records `rotation_requested` (performed=false) and says no shares were changed. REAL rotation (quorum ceremony, generation + 1, is_current = 0) is still OPEN.
+- FIXED (2026-10-25): submit-page timestamp is real server UTC time and a page older than 300 s is refused (`nonce_expired`); _suspects_for_exam no longer uses the broken examiner subquery; stray [cite: ..] tags removed from code and tests.
 - FIXED: create_exam takes k (threshold, default n//2+1); upload page has k and n fields (default 3 and 5); exam title and subject are stored in the exams table. Still open: paper_service uses its own hard-coded database path (data/examvault.db) and ignores DATABASE_PATH.
 - DECISION: /examiner/exams lists every exam (the plan exams table has no owner column).
 - Holders' private keys stay in server memory until release (plan says request-only); pending submissions are lost on restart.
-- rotation.py is not wired to the database (generation / is_current) and has no admin page.
+- rotation_service deletes old shares instead of is_current = 0 / generation + 1, and nothing rebuilds the master secret yet (needs k holders' keys): the rotation page is request-only.
 - SESSION_COOKIE_SECURE is False (fine on localhost; make it configurable for HTTPS).
 - Navbar red alert bell for Admin and Auditor is not built.
 
@@ -216,6 +219,7 @@ Do not change anything else.
 | 2026-10-06 | Claude | Full review (222 tests re-run, 0 failures). Fixes: admin username whitelist + no-store, tests isolated from real keys/, verifier open-day rule, make_demo_exam keeps existing public keys; built Auditor pages 17-19; 233/233 pass. | Leader decisions (k/n, exam title, tampered-chain behaviour), then T2 examiner pages |
 | 2026-10-09 | Claude | Fixed examiner routes: added _load_private_ed25519_key helper, pass exam_title/subject to create_exam, removed dead 'variant' line; added Layer 3 placeholder routes /examiner/variants/<exam_id> and /tracing/analyze; added Variants Review and Leak Analyzer buttons to exam detail page; created examiner_variants.html and tracing_analyze.html templates; 233/233 tests pass. | Layer 3 tracing modules (T3): template.py, codes.py, tardos.py, copygen.py, analyzer.py, simulate.py |
 | 2026-10-10 | Claude | Updated PROJECT_STATE.md to reflect final project state; Layers 1-4 fully implemented, all 286 tests passing, Web UI fully integrated, Layer 5 deferred | Prepare for final demonstration |
+| 2026-10-25 | Claude | Review fixes #1-#4: Schnorr off, honest rotation page, CRL wired (login, share, download, revoke), real timestamp + replay window, suspects query, cite tags removed; 12 new tests (not run: no network) | Run pytest; then Layer 5 honeytoken |
 
 ## Real names in the code (use these in all future prompts)
 

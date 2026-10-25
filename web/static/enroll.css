@@ -1,0 +1,53 @@
+/* Enroll-2FA page: extra pieces only. Everything else (card, badge, title, OTP boxes, button,
+   verifying animation) comes from login.css. Load this AFTER login.css. */
+
+.neu-card.neu-enroll { max-width: 460px; }
+
+/* ---- steps ---- */
+.enroll-steps { list-style: none; margin: 0; padding: 0; text-align: left; }
+.enroll-step + .enroll-step { margin-top: 1.75rem; }
+.enroll-step-head {
+  display: flex; align-items: center; gap: .75rem;
+  font-size: .95rem; line-height: 1.4; color: rgb(var(--ev-text-rgb));
+}
+.enroll-num {
+  flex: none; width: 28px; height: 28px; border-radius: 50%;
+  display: grid; place-items: center;
+  font-size: .8rem; font-weight: 700; color: var(--ev-primary);
+  background: var(--neu-bg);
+  box-shadow: 3px 3px 7px var(--neu-lo), -3px -3px 7px var(--neu-hi);
+}
+
+/* ---- QR on a white tile so it always scans, in light or dark theme ---- */
+.enroll-qr {
+  width: fit-content; margin: 1.1rem auto 0; padding: 12px; line-height: 0;
+  background: #fff; border-radius: 20px; box-shadow: var(--neu-raised-sm);
+}
+.enroll-qr img { display: block; width: 176px; height: 176px; border-radius: 8px; }
+
+/* ---- manual key (inset pill, click selects everything) ---- */
+.enroll-key-label { font-size: .8rem; color: rgb(var(--ev-muted-rgb)); margin: 1.1rem 0 .4rem .5rem; }
+.neu-enroll code.enroll-key {
+  display: block; padding: .75rem 1rem; border-radius: 14px; text-align: center;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: .95rem; letter-spacing: .08em; word-break: break-all;
+  color: rgb(var(--ev-text-rgb)); background: var(--neu-bg);
+  box-shadow: var(--neu-inset); user-select: all;
+}
+
+/* ---- "shown only once" note ---- */
+.enroll-note {
+  margin: 1rem 0 0; padding: .7rem .9rem; border-radius: 12px;
+  font-size: .82rem; line-height: 1.45; text-align: left;
+  color: rgb(var(--ev-text-rgb));
+  background: color-mix(in srgb, var(--ev-warning) 14%, var(--neu-bg));
+  border-left: 3px solid var(--ev-warning);
+}
+
+/* ---- code boxes + button inside step 3 ---- */
+.neu-enroll .otp-container { margin: 1.1rem 0 1.25rem; }
+.neu-enroll .otp-input { flex: 1 1 0; min-width: 0; max-width: 52px; width: auto; }  /* never overflow on phones */
+
+@media (max-width: 480px) {
+  .neu-card.neu-enroll { padding: 2rem 1.25rem 1.5rem; }
+}

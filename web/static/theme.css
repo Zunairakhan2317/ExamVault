@@ -1,0 +1,207 @@
+/* =====================================================================================
+   ExamVault theme: THE ONLY FILE you edit to restyle the whole app.
+   Sirf neeche wale "THEME VARIABLES" block ki values badlein; baqi file un se chalti hai.
+
+   - Rang "R, G, B" (comma ke saath, bina # ke) likhe jate hain, kyunke Bootstrap yehi format mangta hai.
+     Misal: dark navy #1F2A44  ->  31, 42, 68   (hex se RGB: kisi bhi color picker se)
+   - Har rang sirf EK jagah likha hai; baqi sab jagah usi variable se banta hai.
+   - Fonts: system fonts ke saath Inter/Roboto try hote hain. Web font chahiye to .woff2 file
+     web/static/fonts/ mein rakh kar @font-face yahin upar likhein (CSP 'self' fonts allow karta hai).
+   ===================================================================================== */
+
+/* ============================== THEME VARIABLES (edit here) ============================== */
+:root {
+  /* brand colours - "Vault Calm": same indigo + teal family, lower saturation and brightness */
+  --ev-primary-rgb: 76, 88, 165;     /* #5461B3 soft indigo: buttons, active items */
+  --ev-accent-rgb: 70, 165, 153;     /* #4FB8AA muted teal: links, focus rings */
+  --ev-success-rgb: 52, 152, 107;    /* #34986B */
+  --ev-warning-rgb: 214, 163, 77;    /* #D6A34D */
+  --ev-danger-rgb: 214, 90, 90;      /* #D65A5A */
+  --ev-info-rgb: 98, 164, 214;       /* #62A4D6 */
+  --ev-neutral-rgb: 100, 116, 139;
+
+  --ev-page-bg-rgb: 13, 18, 30;      /* #0D121E page */
+  --ev-surface-rgb: 20, 26, 41;      /* #141A29 cards, tables, panels */
+  --ev-text-rgb: 221, 227, 237;
+  --ev-muted-rgb: 139, 151, 171;
+  --ev-border-rgb: 36, 44, 62;       /* #242C3E */
+  --ev-table-head-rgb: 26, 33, 50;
+
+  --ev-on-color-rgb: 255, 255, 255;
+  --ev-on-warning-rgb: 20, 26, 41;
+
+  --ev-navbar-rgb: 10, 14, 23;       /* #0A0E17 sidebar */
+  --ev-navbar-text-rgb: 255, 255, 255;
+  /* typography and shape */
+  --ev-font: Inter, Roboto, system-ui, -apple-system, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  --ev-font-size: 16px;
+  --ev-heading-weight: 700;
+  --ev-radius: 0.5rem;
+  --ev-container-max: 1200px;
+}
+/* ============================ END OF THEME VARIABLES (do not edit below) ============================ */
+
+
+/* ---- derived tones (computed from the colours above) ---- */
+:root {
+  --ev-primary: rgb(var(--ev-primary-rgb));
+  --ev-accent: rgb(var(--ev-accent-rgb));
+  --ev-success: rgb(var(--ev-success-rgb));
+  --ev-warning: rgb(var(--ev-warning-rgb));
+  --ev-danger: rgb(var(--ev-danger-rgb));
+  --ev-info: rgb(var(--ev-info-rgb));
+  --ev-neutral: rgb(var(--ev-neutral-rgb));
+  --ev-primary-hover: color-mix(in srgb, var(--ev-primary) 85%, white);
+  --ev-primary-active: color-mix(in srgb, var(--ev-primary) 70%, white);
+  --ev-accent-hover: color-mix(in srgb, var(--ev-accent) 80%, black);
+}
+
+/* ---- map the theme onto Bootstrap 5.3 variables ---- */
+:root, [data-bs-theme="light"] {
+  --bs-body-font-family: var(--ev-font);
+  --bs-body-font-size: var(--ev-font-size);
+  --bs-body-color: rgb(var(--ev-text-rgb));
+  --bs-body-color-rgb: var(--ev-text-rgb);
+  --bs-body-bg: rgb(var(--ev-surface-rgb));
+  --bs-body-bg-rgb: var(--ev-surface-rgb);
+  --bs-emphasis-color: rgb(var(--ev-text-rgb));
+  --bs-secondary-color: rgba(var(--ev-muted-rgb), 0.9);
+  --bs-secondary-bg: rgb(var(--ev-table-head-rgb));
+  --bs-tertiary-bg: rgb(var(--ev-page-bg-rgb));
+  --bs-border-color: rgb(var(--ev-border-rgb));
+  --bs-border-radius: var(--ev-radius);
+
+  --bs-primary: var(--ev-primary);   --bs-primary-rgb: var(--ev-primary-rgb);
+  --bs-secondary: var(--ev-neutral); --bs-secondary-rgb: var(--ev-neutral-rgb);
+  --bs-success: var(--ev-success);   --bs-success-rgb: var(--ev-success-rgb);
+  --bs-info: var(--ev-info);         --bs-info-rgb: var(--ev-info-rgb);
+  --bs-warning: var(--ev-warning);   --bs-warning-rgb: var(--ev-warning-rgb);
+  --bs-danger: var(--ev-danger);     --bs-danger-rgb: var(--ev-danger-rgb);
+  --bs-light-rgb: var(--ev-page-bg-rgb);
+  --bs-dark-rgb: var(--ev-primary-rgb);
+
+  --bs-link-color: var(--ev-accent);        --bs-link-color-rgb: var(--ev-accent-rgb);
+  --bs-link-hover-color: var(--ev-accent-hover);
+  --bs-link-hover-color-rgb: var(--ev-accent-rgb);
+
+  /* soft backgrounds and strong text used by alerts and list groups */
+  --bs-primary-bg-subtle: color-mix(in srgb, var(--ev-primary) 12%, white);
+  --bs-primary-border-subtle: color-mix(in srgb, var(--ev-primary) 30%, white);
+  --bs-primary-text-emphasis: color-mix(in srgb, var(--ev-primary) 80%, black);
+  --bs-secondary-bg-subtle: color-mix(in srgb, var(--ev-neutral) 14%, white);
+  --bs-secondary-border-subtle: color-mix(in srgb, var(--ev-neutral) 30%, white);
+  --bs-secondary-text-emphasis: color-mix(in srgb, var(--ev-neutral) 75%, black);
+  --bs-success-bg-subtle: color-mix(in srgb, var(--ev-success) 15%, white);
+  --bs-success-border-subtle: color-mix(in srgb, var(--ev-success) 35%, white);
+  --bs-success-text-emphasis: color-mix(in srgb, var(--ev-success) 65%, black);
+  --bs-info-bg-subtle: color-mix(in srgb, var(--ev-info) 14%, white);
+  --bs-info-border-subtle: color-mix(in srgb, var(--ev-info) 35%, white);
+  --bs-info-text-emphasis: color-mix(in srgb, var(--ev-info) 65%, black);
+  --bs-warning-bg-subtle: color-mix(in srgb, var(--ev-warning) 18%, white);
+  --bs-warning-border-subtle: color-mix(in srgb, var(--ev-warning) 40%, white);
+  --bs-warning-text-emphasis: color-mix(in srgb, var(--ev-warning) 50%, black);
+  --bs-danger-bg-subtle: color-mix(in srgb, var(--ev-danger) 14%, white);
+  --bs-danger-border-subtle: color-mix(in srgb, var(--ev-danger) 35%, white);
+  --bs-danger-text-emphasis: color-mix(in srgb, var(--ev-danger) 65%, black);
+}
+
+/* ---- layout (brief: one centred container, max 1200 px) ---- */
+.container { max-width: var(--ev-container-max); }
+h1, h2, h3, h4, h5, h6, .h1, .h2, .h3, .h4, .h5, .h6 { font-weight: var(--ev-heading-weight); }
+body.bg-light { background-color: rgb(var(--ev-page-bg-rgb)) !important; }
+
+/* ---- navbar ---- */
+.navbar.bg-dark { background-color: rgb(var(--ev-navbar-rgb)) !important; }
+.navbar-dark {
+  --bs-navbar-color: rgba(var(--ev-navbar-text-rgb), 0.72);
+  --bs-navbar-hover-color: rgb(var(--ev-navbar-text-rgb));
+  --bs-navbar-active-color: rgb(var(--ev-navbar-text-rgb));
+  --bs-navbar-brand-color: rgb(var(--ev-navbar-text-rgb));
+  --bs-navbar-brand-hover-color: rgb(var(--ev-navbar-text-rgb));
+}
+.navbar-text { color: rgba(var(--ev-navbar-text-rgb), 0.85); }
+
+/* ---- buttons ---- */
+.btn-primary {
+  --bs-btn-color: rgb(var(--ev-on-color-rgb)); --bs-btn-bg: var(--ev-primary); --bs-btn-border-color: var(--ev-primary);
+  --bs-btn-hover-color: rgb(var(--ev-on-color-rgb)); --bs-btn-hover-bg: var(--ev-primary-hover); --bs-btn-hover-border-color: var(--ev-primary-hover);
+  --bs-btn-focus-shadow-rgb: var(--ev-primary-rgb);
+  --bs-btn-active-color: rgb(var(--ev-on-color-rgb)); --bs-btn-active-bg: var(--ev-primary-active); --bs-btn-active-border-color: var(--ev-primary-active);
+  --bs-btn-disabled-color: rgb(var(--ev-on-color-rgb)); --bs-btn-disabled-bg: var(--ev-neutral); --bs-btn-disabled-border-color: var(--ev-neutral);
+}
+.btn-secondary, .btn-outline-secondary {
+  --bs-btn-color: var(--ev-primary); --bs-btn-border-color: var(--ev-neutral);
+  --bs-btn-hover-color: rgb(var(--ev-on-color-rgb)); --bs-btn-hover-bg: var(--ev-primary); --bs-btn-hover-border-color: var(--ev-primary);
+  --bs-btn-focus-shadow-rgb: var(--ev-primary-rgb);
+  --bs-btn-active-color: rgb(var(--ev-on-color-rgb)); --bs-btn-active-bg: var(--ev-primary-hover); --bs-btn-active-border-color: var(--ev-primary-hover);
+  --bs-btn-disabled-color: var(--ev-neutral); --bs-btn-disabled-border-color: var(--ev-neutral);
+}
+.btn-secondary { --bs-btn-bg: transparent; }
+.btn-outline-primary {
+  --bs-btn-color: var(--ev-primary); --bs-btn-border-color: var(--ev-primary);
+  --bs-btn-hover-color: rgb(var(--ev-on-color-rgb)); --bs-btn-hover-bg: var(--ev-primary); --bs-btn-hover-border-color: var(--ev-primary);
+  --bs-btn-focus-shadow-rgb: var(--ev-primary-rgb);
+  --bs-btn-active-color: rgb(var(--ev-on-color-rgb)); --bs-btn-active-bg: var(--ev-primary); --bs-btn-active-border-color: var(--ev-primary);
+  --bs-btn-disabled-color: var(--ev-neutral); --bs-btn-disabled-border-color: var(--ev-neutral);
+}
+.btn-success, .btn-outline-success {
+  --bs-btn-color: var(--ev-success); --bs-btn-border-color: var(--ev-success);
+  --bs-btn-hover-color: rgb(var(--ev-on-color-rgb)); --bs-btn-hover-bg: var(--ev-success); --bs-btn-hover-border-color: var(--ev-success);
+  --bs-btn-focus-shadow-rgb: var(--ev-success-rgb);
+  --bs-btn-active-color: rgb(var(--ev-on-color-rgb)); --bs-btn-active-bg: var(--ev-success); --bs-btn-active-border-color: var(--ev-success);
+}
+.btn-success { --bs-btn-color: rgb(var(--ev-on-color-rgb)); --bs-btn-bg: var(--ev-success); }
+.btn-danger, .btn-outline-danger {
+  --bs-btn-color: var(--ev-danger); --bs-btn-border-color: var(--ev-danger);
+  --bs-btn-hover-color: rgb(var(--ev-on-color-rgb)); --bs-btn-hover-bg: var(--ev-danger); --bs-btn-hover-border-color: var(--ev-danger);
+  --bs-btn-focus-shadow-rgb: var(--ev-danger-rgb);
+  --bs-btn-active-color: rgb(var(--ev-on-color-rgb)); --bs-btn-active-bg: var(--ev-danger); --bs-btn-active-border-color: var(--ev-danger);
+}
+.btn-danger { --bs-btn-color: rgb(var(--ev-on-color-rgb)); --bs-btn-bg: var(--ev-danger); }
+.btn-warning {
+  --bs-btn-color: rgb(var(--ev-on-warning-rgb)); --bs-btn-bg: var(--ev-warning); --bs-btn-border-color: var(--ev-warning);
+  --bs-btn-hover-color: rgb(var(--ev-on-warning-rgb)); --bs-btn-hover-bg: color-mix(in srgb, var(--ev-warning) 85%, white); --bs-btn-hover-border-color: color-mix(in srgb, var(--ev-warning) 85%, white);
+  --bs-btn-focus-shadow-rgb: var(--ev-warning-rgb);
+  --bs-btn-active-color: rgb(var(--ev-on-warning-rgb)); --bs-btn-active-bg: color-mix(in srgb, var(--ev-warning) 75%, white); --bs-btn-active-border-color: color-mix(in srgb, var(--ev-warning) 75%, white);
+}
+.btn-outline-light {
+  --bs-btn-color: rgb(var(--ev-navbar-text-rgb)); --bs-btn-border-color: rgba(var(--ev-navbar-text-rgb), 0.7);
+  --bs-btn-hover-color: var(--ev-primary); --bs-btn-hover-bg: rgb(var(--ev-navbar-text-rgb)); --bs-btn-hover-border-color: rgb(var(--ev-navbar-text-rgb));
+  --bs-btn-active-color: var(--ev-primary); --bs-btn-active-bg: rgb(var(--ev-navbar-text-rgb)); --bs-btn-active-border-color: rgb(var(--ev-navbar-text-rgb));
+}
+.btn-link { --bs-btn-color: var(--ev-accent); --bs-btn-hover-color: var(--ev-accent-hover); }
+
+/* ---- forms ---- */
+/* .form-control:focus, .form-select:focus {
+  border-color: var(--ev-accent);
+  box-shadow: 0 0 0 0.25rem rgba(var(--ev-accent-rgb), 0.25);
+} */
+ .form-control:focus, .form-select:focus {
+  border-color: rgba(var(--ev-muted-rgb), 0.5); /* Muted focus by default */
+  box-shadow: 0 0 0 0.25rem rgba(var(--ev-primary-rgb), 0.1); /* Soft primary halo */
+}
+.form-check-input:checked { background-color: var(--ev-accent); border-color: var(--ev-accent); }
+.form-check-input:focus { border-color: var(--ev-accent); box-shadow: 0 0 0 0.25rem rgba(var(--ev-accent-rgb), 0.25); }
+progress, input[type="checkbox"], input[type="radio"] { accent-color: var(--ev-accent); }
+
+/* ---- tables ---- */
+.table-light {
+  --bs-table-color: rgb(var(--ev-text-rgb)); --bs-table-bg: rgb(var(--ev-table-head-rgb));
+  --bs-table-border-color: rgb(var(--ev-border-rgb));
+}
+.table-danger { --bs-table-bg: var(--bs-danger-bg-subtle); --bs-table-color: rgb(var(--ev-text-rgb)); --bs-table-border-color: var(--bs-danger-border-subtle); }
+.table-warning { --bs-table-bg: var(--bs-warning-bg-subtle); --bs-table-color: rgb(var(--ev-text-rgb)); --bs-table-border-color: var(--bs-warning-border-subtle); }
+.table { --bs-table-border-color: rgb(var(--ev-border-rgb)); }
+
+/* ---- cards, navs, lists ---- */
+.card { --bs-card-border-color: rgb(var(--ev-border-rgb)); --bs-card-cap-bg: rgba(var(--ev-primary-rgb), 0.04); }
+.nav-pills { --bs-nav-pills-link-active-bg: var(--ev-primary); }
+.nav-tabs { --bs-nav-tabs-link-active-border-color: rgb(var(--ev-border-rgb)) rgb(var(--ev-border-rgb)) rgb(var(--ev-surface-rgb)); }
+.nav-tabs .nav-link.active { color: var(--ev-primary); }
+.border-success { --bs-border-opacity: 1; border-color: var(--ev-success) !important; }
+.border-danger { border-color: var(--ev-danger) !important; }
+.border-secondary { border-color: rgb(var(--ev-border-rgb)) !important; }
+
+/* ---- small text helpers ---- */
+.text-muted { color: rgb(var(--ev-muted-rgb)) !important; }
+footer { color: rgb(var(--ev-muted-rgb)); }

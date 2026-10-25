@@ -10,6 +10,7 @@ can participate in authenticated flows (login, share submission, and copy downlo
 from __future__ import annotations
 
 import datetime
+import sqlite3
 from pathlib import Path
 from cryptography import x509
 from cryptography.x509.oid import NameOID
@@ -22,6 +23,7 @@ KEYS_DIR.mkdir(parents=True, exist_ok=True)
 
 CA_PRIVATE_KEY_PATH = KEYS_DIR / "ca_private.pem"
 CA_CERT_PATH = KEYS_DIR / "ca_cert.pem"
+CRL_PATH = KEYS_DIR / "crl.pem"  # the published, CA-signed revocation list (git-ignored with keys/)
 
 
 def get_or_create_root_ca() -> tuple[rsa.RSAPrivateKey, x509.Certificate]:
@@ -167,3 +169,90 @@ def build_crl(revoked_serials: list[int]) -> str:
 
     crl = builder.sign(ca_priv, hashes.SHA256())
     return crl.public_bytes(serialization.Encoding.PEM).decode("utf-8")
+
+
+
+def _revoked_serials(conn: sqlite3.Connection) -> list[int]:
+    """Serial numbers of every certificate flagged revoked in the database (unparsable serials are skipped)."""
+    serials: list[int] = []
+    for row in conn.execute("SELECT serial FROM certificates WHERE revoked_at IS NOT NULL"):
+        try:
+            serials.append(int(str(row[0]), 16))
+        except ValueError:
+            continue  # a malformed serial can never match a real certificate
+    return serials
+
+
+def _crl_next_update(crl: x509.CertificateRevocationList) -> datetime.datetime:
+    """next_update as an aware UTC datetime (works with old and new cryptography versions)."""
+    value = getattr(crl, "next_update_utc", None)
+    if value is not None:
+        return value
+    return crl.next_update.replace(tzinfo=datetime.timezone.utc)
+
+
+def current_crl_pem(conn: sqlite3.Connection, force_rebuild: bool = False) -> str:
+    """Return a fresh, CA-signed CRL that lists exactly the revoked certificates in the database.
+
+    Security property: the stored CRL file is only trusted if it is signed by our CA, not expired
+    (next_update in the future) and lists the same serials as the database; otherwise a new CRL is signed
+    and saved. A stale or hand-edited file therefore can never let a revoked certificate through.
+    """
+    revoked = set(_revoked_serials(conn))
+    if not force_rebuild and CRL_PATH.exists():
+        try:
+            crl = x509.load_pem_x509_crl(CRL_PATH.read_bytes())
+            _, ca_cert = get_or_create_root_ca()
+            fresh = _crl_next_update(crl) > datetime.datetime.now(datetime.timezone.utc)
+            same = {entry.serial_number for entry in crl} == revoked
+            if fresh and same and crl.is_signature_valid(ca_cert.public_key()):
+                return crl.public_bytes(serialization.Encoding.PEM).decode("utf-8")
+        except Exception:
+            pass  # unreadable or tampered file: fall through and sign a new one
+    crl_pem = build_crl(sorted(revoked))
+    CRL_PATH.parent.mkdir(parents=True, exist_ok=True)
+    CRL_PATH.write_text(crl_pem, encoding="utf-8")
+    return crl_pem
+
+
+def revoke(conn: sqlite3.Connection, serial: str, reason: str, actor: str = "system") -> str:
+    """Revoke one certificate (plan 6.5): flag it in the database, sign a new CRL, write an audit entry.
+
+    Security property: from this moment verify_certificate / user_certificate_ok refuse the certificate.
+    Raises ValueError for an unknown serial or an empty reason. Returns the new CRL (PEM).
+    """
+    if not reason or not str(reason).strip():
+        raise ValueError("A revocation reason is required")
+    row = conn.execute("SELECT serial FROM certificates WHERE serial = ?", (serial,)).fetchone()
+    if row is None:
+        raise ValueError("Unknown certificate serial")
+    conn.execute(
+        "UPDATE certificates SET revoked_at = ? WHERE serial = ? AND revoked_at IS NULL",
+        (datetime.datetime.now(datetime.timezone.utc).isoformat(), serial),
+    )
+    conn.commit()
+    crl_pem = current_crl_pem(conn, force_rebuild=True)
+    from web.audit_log import log_event  # late import: pki stays importable without the web package loaded
+
+    log_event(conn, actor, "certificate_revoked", {"cert_serial": serial, "reason": str(reason)[:100]})
+    return crl_pem
+
+
+def user_certificate_ok(conn: sqlite3.Connection, user_id: int) -> bool:
+    """True if the user may act: no certificate was issued to them, or their latest one verifies against the CRL.
+
+    Security property: called at login, share submission and copy download, so a revoked (or expired, or
+    forged) certificate stops the user everywhere at once. Fails closed on any error.
+    """
+    try:
+        rows = conn.execute(
+            "SELECT pem, revoked_at FROM certificates WHERE user_id = ? ORDER BY issued_at DESC, rowid DESC",
+            (user_id,),
+        ).fetchall()
+        if not rows:
+            return True  # staff without a certificate (admin, examiner, auditor) are not subject to the CRL
+        if any(r[1] is not None for r in rows):  # r = (pem, revoked_at)
+            return False  # database flag: works even if the CRL file is missing
+        return verify_certificate(rows[0][0], crl_pem=current_crl_pem(conn))
+    except Exception:
+        return False

@@ -1,0 +1,470 @@
+:root, [data-bs-theme="light"] {
+  --bs-success-bg-subtle: color-mix(in srgb, var(--ev-success) 20%, rgb(var(--ev-surface-rgb)));
+  --bs-success-border-subtle: color-mix(in srgb, var(--ev-success) 45%, rgb(var(--ev-surface-rgb)));
+  --bs-success-text-emphasis: color-mix(in srgb, var(--ev-success) 55%, white);
+  --bs-danger-bg-subtle: color-mix(in srgb, var(--ev-danger) 20%, rgb(var(--ev-surface-rgb)));
+  --bs-danger-border-subtle: color-mix(in srgb, var(--ev-danger) 45%, rgb(var(--ev-surface-rgb)));
+  --bs-danger-text-emphasis: color-mix(in srgb, var(--ev-danger) 55%, white);
+  --bs-warning-bg-subtle: color-mix(in srgb, var(--ev-warning) 20%, rgb(var(--ev-surface-rgb)));
+  --bs-warning-border-subtle: color-mix(in srgb, var(--ev-warning) 45%, rgb(var(--ev-surface-rgb)));
+  --bs-warning-text-emphasis: color-mix(in srgb, var(--ev-warning) 60%, white);
+  --bs-info-bg-subtle: color-mix(in srgb, var(--ev-info) 20%, rgb(var(--ev-surface-rgb)));
+  --bs-info-border-subtle: color-mix(in srgb, var(--ev-info) 45%, rgb(var(--ev-surface-rgb)));
+  --bs-info-text-emphasis: color-mix(in srgb, var(--ev-info) 55%, white);
+  --bs-primary-bg-subtle: color-mix(in srgb, var(--ev-primary) 22%, rgb(var(--ev-surface-rgb)));
+  --bs-primary-text-emphasis: color-mix(in srgb, var(--ev-primary) 55%, white);
+}
+.navbar-dark { --bs-navbar-brand-color: var(--ev-accent); --bs-navbar-brand-hover-color: var(--ev-accent); }
+
+/* =====================================================================================
+   A. DARK-THEME FIXES (zaroori). Ye Bootstrap ke kuch hard-coded "light" rang theme se jorte hain.
+   ===================================================================================== */
+:root, [data-bs-theme="light"] {
+  --bs-white-rgb: var(--ev-surface-rgb);          /* "bg-white" tables, panes and boxes follow the theme */
+  --bs-emphasis-color-rgb: var(--ev-text-rgb);    /* table row hover and striped rows */
+  --bs-code-color: var(--ev-accent);
+  --ev-color-scheme: dark;                        /* dark: native date pickers/scrollbars. Light theme: write "light" */
+  --ev-icon-filter: invert(1) grayscale(100%) brightness(200%);   /* modal close "x". Light theme: write "none" */
+  color-scheme: var(--ev-color-scheme);
+}
+.btn-close { filter: var(--ev-icon-filter); }
+.form-select {                                    /* arrow drawn with the text colour (the stock one is dark) */
+  background-image: linear-gradient(45deg, transparent 50%, currentColor 50%), linear-gradient(135deg, currentColor 50%, transparent 50%);
+  background-position: calc(100% - 1.15rem) 55%, calc(100% - 0.8rem) 55%;
+  background-size: 0.35rem 0.35rem, 0.35rem 0.35rem;
+  background-repeat: no-repeat;
+  padding-right: 2.25rem;
+}
+
+/* =====================================================================================
+   B. POLISH LAYER (optional). Har section alag hai: jo pasand na aaye wo section delete kar dein.
+   Sirf theme variables use hote hain, koi literal rang nahi.
+   ===================================================================================== */
+:root {
+  --ev-shadow-sm: 0 1px 2px rgba(var(--ev-navbar-rgb), 0.55);
+  --ev-shadow: 0 1px 2px rgba(var(--ev-navbar-rgb), 0.5), 0 10px 28px rgba(var(--ev-navbar-rgb), 0.35);
+  --ev-radius-lg: calc(var(--ev-radius) * 1.5);
+  --ev-badge-font-size: 0.75rem;   /* badge/tag text size everywhere (headings no longer enlarge it) */
+}
+
+/* B1. typography and accessibility */
+body { line-height: 1.6; text-rendering: optimizeLegibility; -webkit-font-smoothing: antialiased; }
+h1, .h1, h2, .h2, h3, .h3, h4, .h4 { letter-spacing: -0.01em; }
+/* links: no underline anywhere (buttons, cards, tabs, menus). Hover changes colour only. Only a plain
+   text link inside a sentence ("<p><a href>...") shows an underline on hover. */
+a, a:hover, a:focus { text-decoration: none; }
+p a:not([class]):hover, .form-text a:not([class]):hover { text-decoration: underline; text-underline-offset: 0.2em; }
+::selection { background: rgba(var(--ev-accent-rgb), 0.35); }
+:focus-visible { outline: 2px solid var(--ev-accent); outline-offset: 2px; }
+
+/* B2. navbar */
+.navbar.bg-dark { border-bottom: 1px solid rgba(var(--ev-primary-rgb), 0.35); box-shadow: 0 6px 20px rgba(var(--ev-navbar-rgb), 0.45); }
+.navbar-brand { font-weight: 800; letter-spacing: 0.02em; }
+.navbar .nav-link { font-weight: 500; padding-inline: 0.9rem; border-radius: var(--ev-radius); }
+.navbar .nav-link:hover { background: rgba(var(--ev-navbar-text-rgb), 0.07); }
+
+/* B3. cards, with an accent edge on the dashboard number cards */
+.card { border-radius: var(--ev-radius-lg); box-shadow: var(--ev-shadow-sm); background-image: linear-gradient(180deg, rgba(var(--ev-navbar-text-rgb), 0.035), transparent); }
+.card-header { font-weight: 600; letter-spacing: 0.02em; }
+.card .fs-2 { font-weight: 700; letter-spacing: -0.02em; line-height: 1.1; }
+.card:has(> .card-body > .fs-2) { border-left: 4px solid var(--ev-accent); box-shadow: var(--ev-shadow); }
+.card.border-danger { border-left-color: var(--ev-danger); }
+.card-body > .text-muted:first-child:has(+ .fs-2) { text-transform: uppercase; font-size: 0.74rem; letter-spacing: 0.08em; font-weight: 600; margin-bottom: 0.35rem; }
+
+/* B4. tables */
+.table { --bs-table-hover-bg: rgba(var(--ev-accent-rgb), 0.08); margin-bottom: 0; }
+.table > :not(caption) > * > * { padding: 0.8rem 0.95rem; }
+.table > thead th { text-transform: uppercase; font-size: 0.72rem; letter-spacing: 0.08em; font-weight: 600; color: rgb(var(--ev-muted-rgb)); }
+.table-responsive { border: 1px solid rgb(var(--ev-border-rgb)); border-radius: var(--ev-radius-lg); box-shadow: var(--ev-shadow-sm); }
+/* B5. Buttons */
+.btn { 
+  --bs-btn-font-weight: 600; 
+  --bs-btn-border-radius: var(--ev-radius); 
+  letter-spacing: 0.01em; 
+}
+
+.btn-primary, .dbtn.dbtn-primary { 
+  background: color-mix(in srgb, var(--ev-primary) 20%, transparent) !important;
+  border-color: var(--ev-primary) !important;
+  color: rgb(var(--ev-on-color-rgb)) !important;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  border-radius: var(--ev-radius);
+  box-shadow: none !important;
+  transition: background-color .2s ease, border-color .2s ease;
+}
+
+.btn-primary:hover, .dbtn.dbtn-primary { 
+  background: color-mix(in srgb, var(--ev-primary) 28%, transparent) !important;
+  border-color: var(--ev-primary-hover) !important;
+  /* No shining gradient or box-shadow — calm tint shift only */
+  box-shadow: none !important;
+}
+
+.btn-primary:focus-visible, .dbtn.dbtn-primary {
+  outline: 2px solid var(--ev-accent);
+  outline-offset: 2px;
+}
+
+.btn-primary:disabled, .btn-primary.disabled, .dbtn.dbtn-primary:disabled, .dbtn.dbtn-primary.disabled { 
+  background: color-mix(in srgb, var(--ev-primary) 10%, transparent) !important;
+  border-color: color-mix(in srgb, var(--ev-primary) 30%, transparent) !important;
+  box-shadow: none; 
+  opacity: 0.65;
+}
+/* B6. forms */
+.form-label { font-weight: 600; font-size: 0.875rem; margin-bottom: 0.35rem; }
+.form-control, .form-select { padding-block: 0.6rem; border-radius: var(--ev-radius); }
+.form-control::placeholder { color: rgba(var(--ev-muted-rgb), 0.7); }
+.form-text { color: rgb(var(--ev-muted-rgb)); }
+
+/* B7. badges, alerts, tabs, modals, footer */
+
+/* --- Neutral pill with colored dot for ALL badges (including text-bg-*) --- */
+.badge {
+  font-size: var(--ev-badge-font-size);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  line-height: 1.2;
+  padding: 0.35em 0.7em 0.35em 1.6em; /* extra left padding for the dot */
+  border-radius: 999px;
+  vertical-align: middle;
+  position: relative;
+  /* Neutral background for all badges */
+  background: color-mix(in srgb, var(--ev-neutral) 15%, transparent) !important;
+  color: color-mix(in srgb, var(--ev-neutral) 72%, rgb(var(--ev-text-rgb))) !important;
+  border: 1px solid color-mix(in srgb, var(--ev-neutral) 30%, transparent) !important;
+}
+
+/* Colored dot before each badge - maps semantic class to theme color */
+.badge::before {
+  content: "";
+  position: absolute;
+  left: 0.55em;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--ev-neutral); /* default fallback */
+}
+
+/* Map text-bg-* classes to their semantic dot colors */
+.badge.text-bg-primary::before,
+.badge.bg-primary.text-white::before { background: var(--ev-primary); }
+
+.badge.text-bg-secondary::before,
+.badge.bg-secondary.text-white::before { background: var(--ev-neutral); }
+
+.badge.text-bg-success::before,
+.badge.bg-success.text-white::before { background: var(--ev-success); }
+
+.badge.text-bg-info::before,
+.badge.bg-info.text-white::before { background: var(--ev-info); }
+
+.badge.text-bg-warning::before,
+.badge.bg-warning.text-dark::before,
+.badge.bg-warning.text-white::before { background: var(--ev-warning); }
+
+.badge.text-bg-danger::before,
+.badge.bg-danger.text-white::before { background: var(--ev-danger); }
+
+.badge.text-bg-light::before,
+.badge.bg-light.text-dark::before { background: var(--ev-muted-rgb); }
+
+.badge.text-bg-dark::before,
+.badge.bg-dark.text-white::before { background: var(--ev-primary); }
+
+/* Also handle bare .bg-* + .text-* combos if used without text-bg- */
+.badge.bg-primary::before { background: var(--ev-primary); }
+.badge.bg-secondary::before { background: var(--ev-neutral); }
+.badge.bg-success::before { background: var(--ev-success); }
+.badge.bg-info::before { background: var(--ev-info); }
+.badge.bg-warning::before { background: var(--ev-warning); }
+.badge.bg-danger::before { background: var(--ev-danger); }
+.badge.bg-dark::before { background: var(--ev-primary); }
+.alert { border-radius: var(--ev-radius-lg); border-left-width: 4px; box-shadow: var(--ev-shadow-sm); }
+.alert-success { border-left-color: var(--ev-success); }
+.alert-danger { border-left-color: var(--ev-danger); }
+.alert-warning { border-left-color: var(--ev-warning); }
+.alert-info { border-left-color: var(--ev-info); }
+.alert-secondary { border-left-color: var(--ev-neutral); }
+.nav-pills .nav-link { border-radius: 999px; font-weight: 500; }
+details > summary { cursor: pointer; font-weight: 600; }
+.modal-content { border-radius: var(--ev-radius-lg); box-shadow: var(--ev-shadow); }
+footer { border-top: 1px solid rgb(var(--ev-border-rgb)); margin-top: 3rem; }
+
+/* B8. phones: a little more breathing room at the edges */
+@media (max-width: 576px) { main.container { padding-inline: 1rem; } .card .fs-2 { font-size: 1.6rem !important; } }
+
+/* B11. exam upload page: "Encrypt, sign and split key" button — calm indigo, no shining hover */
+#upload-button {
+  background: color-mix(in srgb, var(--ev-primary) 20%, transparent) !important;
+  border-color: var(--ev-primary) !important;
+  color: rgb(var(--ev-on-color-rgb)) !important;
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  padding: 0.5rem 1.5rem;
+  border-radius: var(--ev-radius);
+  transition: background-color .2s ease, border-color .2s ease;
+}
+#upload-button:hover {
+  background: color-mix(in srgb, var(--ev-primary) 28%, transparent) !important;
+  border-color: var(--ev-primary-hover) !important;
+  /* NO background gradient/shine — just a calm tint shift */
+  box-shadow: none !important;
+}
+#upload-button:focus-visible {
+  outline: 2px solid var(--ev-accent);
+  outline-offset: 2px;
+}
+
+/* B9. outline action buttons for table rows (variant review, etc.)
+   Semantic colours on calm outlines — no loud filled backgrounds. */
+.btn.btn-action {
+  background: transparent !important;
+  color: rgb(var(--ev-text-rgb)) !important;
+  border: 1px solid var(--ev-border-rgb) !important; /* fallback neutral */
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  padding: 0.35rem 0.9rem;
+  border-radius: 999px;
+}
+.btn.btn-action:hover {
+  color: rgb(var(--ev-on-color-rgb)) !important;
+  background: rgba(var(--ev-primary-rgb), 0.12) !important;
+}
+.btn.btn-action:focus-visible {
+  outline: 2px solid var(--ev-accent);
+  outline-offset: 2px;
+}
+
+/* Green outline for "Mark reviewed" */
+.btn.btn-action--success {
+  border-color: var(--ev-success) !important;
+}
+.btn.btn-action--success:hover {
+  background: rgba(var(--ev-success-rgb), 0.14) !important;
+  border-color: var(--ev-success) !important;
+}
+
+/* Red outline for "Flag doubtful" */
+.btn.btn-action--danger {
+  border-color: var(--ev-danger) !important;
+}
+.btn.btn-action--danger:hover {
+  background: rgba(var(--ev-danger-rgb), 0.14) !important;
+  border-color: var(--ev-danger) !important;
+}
+
+/* B10. ACTION BUTTONS (table rows: View, Deactivate, Activate, Disable, Revoke; and the exam page actions).
+   One calm style: readable text, quiet border, a soft tint on hover. Colour comes from the tone variables. */
+td .btn, .btn-exam-action {
+  --ra-tone: var(--ev-accent);                                   /* hover / focus colour */
+  --ra-text: rgb(var(--ev-text-rgb));
+  --ra-border: rgb(var(--ev-border-rgb));
+  --ra-bg: color-mix(in srgb, rgb(var(--ev-text-rgb)) 5%, transparent);
+  --bs-btn-padding-y: 0.4rem;
+  --bs-btn-padding-x: 0.95rem;
+  --bs-btn-font-size: 0.8rem;
+  --bs-btn-font-weight: 600;
+  --bs-btn-border-radius: var(--ev-radius);
+  --bs-btn-color: var(--ra-text);
+  --bs-btn-bg: var(--ra-bg);
+  --bs-btn-border-color: var(--ra-border);
+  --bs-btn-hover-color: var(--ra-text);
+  --bs-btn-hover-bg: color-mix(in srgb, var(--ra-tone) 16%, transparent);
+  --bs-btn-hover-border-color: var(--ra-tone);
+  --bs-btn-active-color: var(--ra-text);
+  --bs-btn-active-bg: color-mix(in srgb, var(--ra-tone) 26%, transparent);
+  --bs-btn-active-border-color: var(--ra-tone);
+  --bs-btn-disabled-color: rgb(var(--ev-muted-rgb));
+  --bs-btn-disabled-bg: transparent;
+  --bs-btn-disabled-border-color: rgb(var(--ev-border-rgb));
+  --bs-btn-focus-shadow-rgb: var(--ev-accent-rgb);
+  display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem;
+  line-height: 1.2; white-space: nowrap; letter-spacing: 0.01em;
+  background-color: var(--bs-btn-bg); color: var(--bs-btn-color); border: 1px solid var(--bs-btn-border-color);
+  border-radius: var(--bs-btn-border-radius); box-shadow: none; transition: none;
+}
+td .btn:hover, .btn-exam-action:hover {
+  background-color: var(--bs-btn-hover-bg); color: var(--bs-btn-hover-color); border-color: var(--bs-btn-hover-border-color); box-shadow: none;
+}
+td .btn:active, .btn-exam-action:active { background-color: var(--bs-btn-active-bg); border-color: var(--bs-btn-active-border-color); }
+td .btn:focus-visible, .btn-exam-action:focus-visible { outline: 2px solid var(--ev-accent); outline-offset: 2px; box-shadow: none; }
+td .btn:disabled, td .btn.disabled, .btn-exam-action:disabled { opacity: 0.55; }
+
+/* tones: danger (Deactivate, Revoke), success (Activate), warning (Disable), accent (Leak Analyzer) */
+td .btn-outline-danger, td .btn-danger, .btn-exam-action--danger {
+  --ra-tone: var(--ev-danger);
+  --ra-text: color-mix(in srgb, var(--ev-danger) 70%, rgb(var(--ev-text-rgb)));
+  --ra-border: color-mix(in srgb, var(--ev-danger) 50%, transparent);
+  --ra-bg: transparent;
+}
+td .btn-outline-success, td .btn-success, .btn-exam-action--success {
+  --ra-tone: var(--ev-success);
+  --ra-text: color-mix(in srgb, var(--ev-success) 70%, rgb(var(--ev-text-rgb)));
+  --ra-border: color-mix(in srgb, var(--ev-success) 50%, transparent);
+  --ra-bg: transparent;
+}
+td .btn-outline-warning, td .btn-warning {
+  --ra-tone: var(--ev-warning);
+  --ra-text: color-mix(in srgb, var(--ev-warning) 70%, rgb(var(--ev-text-rgb)));
+  --ra-border: color-mix(in srgb, var(--ev-warning) 50%, transparent);
+  --ra-bg: transparent;
+}
+.btn-exam-action--leak {
+  --ra-tone: var(--ev-accent);
+  --ra-text: color-mix(in srgb, var(--ev-accent) 70%, rgb(var(--ev-text-rgb)));
+  --ra-border: color-mix(in srgb, var(--ev-accent) 50%, transparent);
+  --ra-bg: transparent;
+}
+
+/* exam page actions are a little larger than row actions */
+.btn-exam-action { --bs-btn-padding-y: 0.55rem; --bs-btn-padding-x: 1.25rem; --bs-btn-font-size: 0.875rem; padding: var(--bs-btn-padding-y) var(--bs-btn-padding-x); font-size: var(--bs-btn-font-size); font-weight: var(--bs-btn-font-weight); }
+
+/* action cells: buttons sit side by side (no stacking), with a small gap */
+td form { display: inline-block; margin: 0; }
+td:has(> .btn, > form > .btn, > .d-inline > .btn) { white-space: nowrap; }
+td:has(> .btn, > form > .btn, > .d-inline > .btn) > * + * { margin-left: 0.4rem; }
+
+/* =====================================================================================
+   C. DROPDOWNS AND DATE PICKERS (sab <select> aur date / date-time inputs par lagu)
+   C1 select band halat, C2 select ki khuli list, C3 date/time fields.
+   Sirf theme variables; jo section pasand na aaye delete kar dein.
+   ===================================================================================== */
+
+/* C1. closed dropdown */
+.form-select { background-color: rgb(var(--ev-surface-rgb)); color: rgb(var(--ev-text-rgb)); border-color: rgb(var(--ev-border-rgb)); cursor: pointer; }
+.form-select:hover:not(:disabled) { border-color: rgba(var(--ev-accent-rgb), 0.65); }
+.form-select:disabled { opacity: 0.6; cursor: not-allowed; }
+
+/* C2a. the open list in every browser: surface background and theme text */
+select option, select optgroup { background-color: rgb(var(--ev-surface-rgb)); color: rgb(var(--ev-text-rgb)); }
+select option:checked { background-color: rgb(var(--ev-primary-rgb)); color: rgb(var(--ev-on-color-rgb)); }
+
+/* C2b. fully themed open list in browsers that support customisable selects (recent Chrome / Edge).
+   Older browsers ignore this whole block and keep C2a. */
+@supports (appearance: base-select) {
+  .form-select, .form-select::picker(select) { appearance: base-select; }
+  .form-select { display: flex; align-items: center; justify-content: space-between; background-image: none; padding-right: 0.85rem; }
+  .form-select::picker-icon { color: rgb(var(--ev-muted-rgb)); }
+  .form-select:open::picker-icon { color: var(--ev-accent); }
+  .form-select::picker(select) {
+    background-color: rgb(var(--ev-surface-rgb)); color: rgb(var(--ev-text-rgb));
+    border: 1px solid rgb(var(--ev-border-rgb)); border-radius: var(--ev-radius-lg);
+    box-shadow: var(--ev-shadow); padding: 0.35rem; margin-top: 0.25rem;
+  }
+  .form-select option { padding: 0.55rem 0.8rem; border-radius: var(--ev-radius); }
+  .form-select option:hover, .form-select option:focus-visible { background-color: rgba(var(--ev-accent-rgb), 0.16); outline: none; }
+  .form-select option:checked { background-color: rgba(var(--ev-primary-rgb), 0.45); font-weight: 600; }
+  .form-select option::checkmark { color: var(--ev-accent); }
+}
+
+/* C3. date and date-time fields (the calendar popup itself is drawn by the browser: it follows
+   color-scheme and accent-color from section A; see the note about a custom calendar) */
+input[type="date"], input[type="datetime-local"], input[type="time"], input[type="month"] {
+  accent-color: var(--ev-accent); color-scheme: var(--ev-color-scheme); min-height: 2.75rem;
+}
+input[type="date"]::-webkit-calendar-picker-indicator, input[type="datetime-local"]::-webkit-calendar-picker-indicator,
+input[type="time"]::-webkit-calendar-picker-indicator, input[type="month"]::-webkit-calendar-picker-indicator {
+  filter: var(--ev-icon-filter); opacity: 0.85; cursor: pointer; padding: 0.2rem; border-radius: 0.35rem;
+}
+input[type="date"]::-webkit-calendar-picker-indicator:hover, input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover,
+input[type="time"]::-webkit-calendar-picker-indicator:hover, input[type="month"]::-webkit-calendar-picker-indicator:hover {
+  opacity: 1; background-color: rgba(var(--ev-accent-rgb), 0.22);
+}
+input::-webkit-datetime-edit { color: rgb(var(--ev-text-rgb)); }
+input::-webkit-datetime-edit-day-field:focus, input::-webkit-datetime-edit-month-field:focus, input::-webkit-datetime-edit-year-field:focus,
+input::-webkit-datetime-edit-hour-field:focus, input::-webkit-datetime-edit-minute-field:focus, input::-webkit-datetime-edit-ampm-field:focus {
+  background-color: rgba(var(--ev-primary-rgb), 0.6); color: rgb(var(--ev-on-color-rgb)); border-radius: 0.25rem; outline: none;
+}
+
+
+/* =====================================================================================
+   S. SEMANTIC TONES (alert / badge / list backgrounds). Surface aur text colour se banay jate hain,
+   is liye dark AUR light dono themes mein sahi rehte hain. Theme badalne par kuch edit nahi karna.
+   ===================================================================================== */
+:root, [data-bs-theme="light"] {
+  --bs-primary-bg-subtle: color-mix(in srgb, var(--ev-primary) 20%, rgb(var(--ev-surface-rgb)));
+  --bs-primary-border-subtle: color-mix(in srgb, var(--ev-primary) 45%, rgb(var(--ev-surface-rgb)));
+  --bs-primary-text-emphasis: color-mix(in srgb, var(--ev-primary) 55%, rgb(var(--ev-text-rgb)));
+  --bs-secondary-bg-subtle: color-mix(in srgb, var(--ev-neutral) 18%, rgb(var(--ev-surface-rgb)));
+  --bs-secondary-border-subtle: color-mix(in srgb, var(--ev-neutral) 40%, rgb(var(--ev-surface-rgb)));
+  --bs-secondary-text-emphasis: color-mix(in srgb, var(--ev-neutral) 45%, rgb(var(--ev-text-rgb)));
+  --bs-success-bg-subtle: color-mix(in srgb, var(--ev-success) 20%, rgb(var(--ev-surface-rgb)));
+  --bs-success-border-subtle: color-mix(in srgb, var(--ev-success) 45%, rgb(var(--ev-surface-rgb)));
+  --bs-success-text-emphasis: color-mix(in srgb, var(--ev-success) 55%, rgb(var(--ev-text-rgb)));
+  --bs-info-bg-subtle: color-mix(in srgb, var(--ev-info) 20%, rgb(var(--ev-surface-rgb)));
+  --bs-info-border-subtle: color-mix(in srgb, var(--ev-info) 45%, rgb(var(--ev-surface-rgb)));
+  --bs-info-text-emphasis: color-mix(in srgb, var(--ev-info) 55%, rgb(var(--ev-text-rgb)));
+  --bs-warning-bg-subtle: color-mix(in srgb, var(--ev-warning) 20%, rgb(var(--ev-surface-rgb)));
+  --bs-warning-border-subtle: color-mix(in srgb, var(--ev-warning) 45%, rgb(var(--ev-surface-rgb)));
+  --bs-warning-text-emphasis: color-mix(in srgb, var(--ev-warning) 60%, rgb(var(--ev-text-rgb)));
+  --bs-danger-bg-subtle: color-mix(in srgb, var(--ev-danger) 20%, rgb(var(--ev-surface-rgb)));
+  --bs-danger-border-subtle: color-mix(in srgb, var(--ev-danger) 45%, rgb(var(--ev-surface-rgb)));
+  --bs-danger-text-emphasis: color-mix(in srgb, var(--ev-danger) 55%, rgb(var(--ev-text-rgb)));
+  --bs-light-bg-subtle: rgb(var(--ev-table-head-rgb));
+  --bs-light-border-subtle: rgb(var(--ev-border-rgb));
+  --bs-light-text-emphasis: rgb(var(--ev-text-rgb));
+  --bs-dark-bg-subtle: rgb(var(--ev-table-head-rgb));
+  --bs-dark-border-subtle: rgb(var(--ev-border-rgb));
+  --bs-dark-text-emphasis: rgb(var(--ev-text-rgb));
+}
+
+/* =====================================================================================
+   B5b. BUTTON ICONS: ek hi size, chahe button .btn ho ya .dbtn. Icon bada nahi hota.
+   ===================================================================================== */
+.btn, .dbtn { display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; }
+.btn > svg, .btn > i, .btn > img, .dbtn > svg, .dbtn > i, .dbtn > img {
+  width: 1.15em; height: 1.15em; font-size: 1.15em; line-height: 1; flex: 0 0 auto;
+}
+
+/* =====================================================================================
+   D. PAGINATION ("1 / 1", Previous / Next, "Showing 1-9 of 9 users"). Bootstrap's bright blue
+   active page is replaced by the theme: calm tint like the primary buttons, readable text.
+   ===================================================================================== */
+.pagination {
+  --bs-pagination-padding-x: 0.9rem;
+  --bs-pagination-padding-y: 0.45rem;
+  --bs-pagination-font-size: 0.9rem;
+  --bs-pagination-color: rgb(var(--ev-text-rgb));
+  --bs-pagination-bg: rgb(var(--ev-surface-rgb));
+  --bs-pagination-border-width: 1px;
+  --bs-pagination-border-color: rgb(var(--ev-border-rgb));
+  --bs-pagination-border-radius: var(--ev-radius);
+  --bs-pagination-hover-color: rgb(var(--ev-text-rgb));
+  --bs-pagination-hover-bg: color-mix(in srgb, var(--ev-accent) 14%, transparent);
+  --bs-pagination-hover-border-color: var(--ev-accent);
+  --bs-pagination-focus-color: rgb(var(--ev-text-rgb));
+  --bs-pagination-focus-bg: color-mix(in srgb, var(--ev-accent) 14%, transparent);
+  --bs-pagination-focus-box-shadow: 0 0 0 0.2rem rgba(var(--ev-accent-rgb), 0.3);
+  --bs-pagination-active-color: rgb(var(--ev-on-color-rgb));
+  --bs-pagination-active-bg: color-mix(in srgb, var(--ev-primary) 35%, transparent);
+  --bs-pagination-active-border-color: var(--ev-primary);
+  --bs-pagination-disabled-color: rgb(var(--ev-muted-rgb));
+  --bs-pagination-disabled-bg: transparent;
+  --bs-pagination-disabled-border-color: rgb(var(--ev-border-rgb));
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin: 1.25rem 0 0.5rem;
+}
+.pagination .page-link {
+  min-width: 2.5rem;
+  text-align: center;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  border-radius: var(--ev-radius);
+  margin-left: 0;
+  box-shadow: none;
+}
+.pagination .page-item:not(:first-child) .page-link { margin-left: 0; }
+.pagination .page-item.active .page-link { font-weight: 700; }
+.pagination .page-item.disabled .page-link { opacity: 0.6; }
+/* the "Showing 1-9 of 9 users" line under the pager */
+nav:has(> .pagination) + .text-muted, nav:has(> .pagination) + p, .pagination + .text-muted, .pagination + p {
+  text-align: center; font-size: 0.85rem; color: rgb(var(--ev-muted-rgb)); margin-bottom: 1.5rem;
+}

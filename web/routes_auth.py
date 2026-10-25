@@ -23,6 +23,7 @@ from flask_login import current_user, login_user, logout_user
 from auth import lockout
 from auth.passwords import hash_password, needs_rehash, verify_password
 from auth.rbac import ROLES, role_required
+from crypto import pki
 from auth.totp import (
     new_secret,
     protect_secret,
@@ -109,6 +110,11 @@ def _count_failure(conn: sqlite3.Connection, username: str, action: str) -> bool
 def _finish_login(conn: sqlite3.Connection, user: sqlite3.Row, step: int):
     """Both factors passed: store the TOTP step (replay protection) and start a fresh session."""
     ip = request.remote_addr
+    if not pki.user_certificate_ok(conn, int(user["id"])):  # revoked between the two login steps
+        session.clear()
+        log_event(conn, user["username"], "login_refused", {"ip": ip, "reason": "revoked_certificate"})
+        flash("Your certificate has been revoked. Contact the administrator.", "danger")
+        return redirect("/login")
     previous_login = conn.execute(
         "SELECT last_login_at FROM users WHERE id = ?", (user["id"],)
     ).fetchone()["last_login_at"]
@@ -174,6 +180,10 @@ def register(app: Flask) -> None:
         if row is None or not row["is_active"] or not password_ok:
             _count_failure(conn, username, "login_failed")
             flash(GENERIC_LOGIN_ERROR, "danger")
+            return render_template("login.html")
+        if not pki.user_certificate_ok(conn, int(row["id"])):  # plan 6.6: certificate + CRL check
+            log_event(conn, username[:64], "login_refused", {"ip": request.remote_addr, "reason": "revoked_certificate"})
+            flash("Your certificate has been revoked. Contact the administrator.", "danger")
             return render_template("login.html")
         if needs_rehash(stored):
             conn.execute(

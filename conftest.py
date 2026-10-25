@@ -13,3 +13,7 @@ def _isolated_keys_dir(tmp_path, monkeypatch):
     keys = tmp_path / "keys"
     keys.mkdir()
     monkeypatch.setattr(routes_admin, "KEYS_DIR", keys)
+
+    from crypto import pki
+
+    monkeypatch.setattr(pki, "CRL_PATH", keys / "crl.pem")

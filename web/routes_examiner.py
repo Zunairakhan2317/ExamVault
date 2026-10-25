@@ -353,11 +353,15 @@ def register(app: Flask) -> None:
                   {"exam_id": exam_id, "slot_id": int(slot_text), "status": status})
         return redirect(url_for("examiner_variants", exam_id=exam_id, filter=request.form.get("filter", "all")), 303)
 
-    def _suspects_for_exam(conn: sqlite3.Connection, exam_id: str) -> tuple[list[str], list[list[int]]] | None:
-        """Return (username, code) pairs for every invigilator holding a copy of this exam."""
+    def _suspects_for_exam(conn: sqlite3.Connection, exam_id: str) -> list[tuple[str, list[int]]] | None:
+        """Return (username, code) pairs for every invigilator holding a copy of this exam.
+
+        Revoked or disabled holders are kept on purpose: a leaker may well have been cut off since.
+        """
         code_rows = conn.execute(
             "SELECT u.username, c.slot_pattern, c.user_id FROM copies c "
-            "JOIN users u ON u.id = c.user_id WHERE c.exam_id = ? AND c.user_id != (SELECT id FROM users WHERE role = 'examiner')",
+            "JOIN users u ON u.id = c.user_id WHERE c.exam_id = ? AND u.role = 'invigilator' "
+            "ORDER BY c.user_id",
             (exam_id,),
         ).fetchall()
         if not code_rows:
@@ -391,21 +395,25 @@ def register(app: Flask) -> None:
         """
         exam = exam_store.get_exam(request.args.get("exam_id"))
         if not exam:
-            return redirect(url_for("examiner_exams"))
+            # No exam selected yet — render the page so the user can pick one from their exams
+            exam = None
         conn = get_db()
         results, errors = None, []
-        try:
-            suspects = _suspects_for_exam(conn, exam["exam_id"])
-            biases = _biases_for_exam(conn, exam["exam_id"])
-            if suspects is None:
-                errors.append("No copies of this exam were issued, so there is nothing to trace.")
-            elif biases is None:
-                errors.append("Variant slots were stored but the tracing parameters are missing; re-release the exam.")
-        except Exception as exc:  # no tracing tables yet, or storage issue
-            errors.append(f"Could not load tracing data: {exc}")
+        if exam is not None:
+            try:
+                suspects = _suspects_for_exam(conn, exam["exam_id"])
+                biases = _biases_for_exam(conn, exam["exam_id"])
+                if suspects is None:
+                    errors.append("No copies of this exam were issued, so there is nothing to trace.")
+                elif biases is None:
+                    errors.append("Variant slots were stored but the tracing parameters are missing; re-release the exam.")
+            except Exception as exc:  # no tracing tables yet, or storage issue
+                errors.append(f"Could not load tracing data: {exc}")
 
         if request.method == "POST":
-            if errors:
+            if exam is None:
+                flash("Select an exam to analyze", "danger")
+            elif errors:
                 flash("Leak analysis is unavailable for this exam: " + "; ".join(errors), "danger")
             else:
                 leaked_text, extract_error = _read_leak_input(request)

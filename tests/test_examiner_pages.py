@@ -275,7 +275,7 @@ def test_detail_page_works_on_a_fresh_database_without_audit_table(env):
     assert response.status_code == 200
     text = response.get_data(as_text=True)
     for expected in ("Exam ID", "Paper hash", "Signature verified", "3 of 5", "Waiting for window to open",
-                     "Open Leak Analyzer", "Share submitted", "No copies issued yet", "No log entries"):
+                     "Leak Analyzer", "Share submitted", "No copies issued yet", "No log entries"):
         assert expected in text
 
 

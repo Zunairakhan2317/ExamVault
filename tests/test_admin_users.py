@@ -1,7 +1,7 @@
-"""Admin user management pages (Plan T1)[cite: 56].
+"""Admin user management pages (Plan T1).
 
 Tests: users listing with search/filter/pagination, create user with Argon2 password,
-RSA keypair generation for invigilators, disable and revoke[cite: 56].
+RSA keypair generation for invigilators, disable and revoke.
 """
 from __future__ import annotations
 
@@ -19,14 +19,14 @@ ROLES = ["admin", "examiner", "invigilator", "auditor"]
 
 @pytest.fixture
 def auth_and_db(tmp_path):
-    """Create app, admin user and other users, then connect the db[cite: 56]."""
+    """Create app, admin user and other users, then connect the db."""
     paper_db = tmp_path / "paper.db"
     web_db = tmp_path / "web.db"
     app = create_app({
         "TESTING": True, "SKIP_DOTENV": True, "SECRET_KEY": "for-tests-only",
         "TOTP_ENCRYPTION_KEY": "11" * 32, "DATABASE_PATH": str(web_db),
         "AUDIT_SIGNING_KEY_PATH": str(tmp_path / "audit.pem"),
-        "WTF_CSRF_ENABLED": False,  # Disable CSRF for testing[cite: 56]
+        "WTF_CSRF_ENABLED": False,  # Disable CSRF for testing
     })
     conn = get_connection(web_db)
     conn.execute(
@@ -53,7 +53,7 @@ def _auth_client(app, admin=True):
 
 
 def _assert_pagination(page, expected_label, has_prev=True, has_next=False):
-    """Shared assertions for the users listing page[cite: 56]."""
+    """Shared assertions for the users listing page."""
     assert page.status_code == 200, "listing should render"
     data = page.get_data(as_text=True)
     assert expected_label in data, f"expected {expected_label} in page"
@@ -95,7 +95,7 @@ def test_admin_users_list_role_filter(auth_and_db):
     page = client.get("/admin/users?role=invigilator")
     data = page.get_data(as_text=True)
     assert "invigilator" in data
-    # No non-invigilators in results[cite: 56]
+    # No non-invigilators in results
     for name, role in zip(USERS, ["examiner", "invigilator", "auditor", "invigilator"]):
         if role == "invigilator":
             assert name in data
@@ -125,7 +125,7 @@ def test_admin_users_create_success(auth_and_db):
     assert row["full_name"] == "New User"
     assert row["email"] == "frank@example.com"
     assert row["role"] == "auditor"
-    assert row["password_hash"] != "x"  # hashed with Argon2, not placeholder[cite: 56]
+    assert row["password_hash"] != "x"  # hashed with Argon2, not placeholder
     audit = [tuple(r) for r in conn.execute("SELECT * FROM audit_entries")]
     assert any("user_created" in str(e) for e in audit)
 
@@ -252,7 +252,7 @@ def test_admin_users_disable_self(auth_and_db):
 def test_admin_users_disable_inactive(auth_and_db):
     app, conn, ids = auth_and_db
     client = _auth_client(app)
-    # Disable carol first[cite: 56]
+    # Disable carol first
     conn.execute("UPDATE users SET is_active = 0 WHERE id = ?", (ids["carol"],))
     conn.commit()
     page = client.post(
@@ -345,7 +345,7 @@ def test_admin_users_revoke_self(auth_and_db):
 
 def test_non_admin_cannot_access(auth_and_db):
     app, conn, ids = auth_and_db
-    # Login as an invigilator (user id 2)[cite: 56]
+    # Login as an invigilator (user id 2)
     client = app.test_client()
     with client.session_transaction() as sess:
         sess["_user_id"] = "2"
@@ -456,3 +456,45 @@ def test_users_list_show_last_login(auth_and_db):
     client = _auth_client(app)
     page = client.get("/admin/users")
     assert "2025-10-01T12:34" in page.get_data(as_text=True) or "last_login" in page.get_data(as_text=True)
+
+
+
+# --- review fixes: Schnorr off, CRL on revoke, honest rotation page ---------------------------------------
+
+def test_new_invigilator_gets_no_schnorr_key(auth_and_db):
+    """Schnorr is off until its UI exists; a stored y with a thrown-away x would lock the user out."""
+    app, conn, ids = auth_and_db
+    _create_invigilator(_auth_client(app), "noschnorr")
+    row = conn.execute("SELECT schnorr_public_y FROM users WHERE username = 'noschnorr'").fetchone()
+    assert row is not None and row["schnorr_public_y"] is None
+
+
+def test_revoke_puts_the_certificate_on_a_signed_crl(auth_and_db):
+    from cryptography import x509
+    from crypto import pki
+
+    app, conn, ids = auth_and_db
+    client = _auth_client(app)
+    _create_invigilator(client, "crluser")
+    uid = conn.execute("SELECT id FROM users WHERE username = 'crluser'").fetchone()["id"]
+    serial = conn.execute("SELECT serial FROM certificates WHERE user_id = ?", (uid,)).fetchone()["serial"]
+    assert pki.user_certificate_ok(conn, uid) is True
+
+    client.post(f"/admin/users/{uid}/revoke", data={"csrf_token": "t", "reason": "left_job"}, follow_redirects=True)
+
+    assert pki.user_certificate_ok(conn, uid) is False
+    crl = x509.load_pem_x509_crl(pki.current_crl_pem(conn).encode())
+    assert int(serial, 16) in {entry.serial_number for entry in crl}
+    audit = str([tuple(r) for r in conn.execute("SELECT * FROM audit_entries")])
+    assert "certificate_revoked" in audit and "user_revoked" in audit
+
+
+def test_rotation_page_does_not_claim_a_rotation_happened(auth_and_db):
+    app, conn, ids = auth_and_db
+    client = _auth_client(app)
+    page = client.get("/admin/rotations").get_data(as_text=True)
+    assert "No shares are changed" in page
+    assert client.post("/admin/exams/not-an-exam/rotate", data={"csrf_token": "t"}).status_code == 404
+    has_table = conn.execute("SELECT 1 FROM sqlite_master WHERE name = 'audit_entries'").fetchone()
+    audit = str([tuple(r) for r in conn.execute("SELECT * FROM audit_entries")]) if has_table else ""
+    assert "shares_rotated" not in audit

@@ -18,8 +18,8 @@
     </select>
   </div>
   <div class="col-auto">
-    <button class="btn btn-outline-secondary" type="submit">Filter</button>
-    <a class="btn btn-outline-secondary" href="{{ url_for('admin_users') }}">Clear</a>
+    <button class="btn btn-primary" type="submit">Filter</button>
+    <a class="btn btn-primary" href="{{ url_for('admin_users') }}">Clear</a>
   </div>
 </form>
 
@@ -60,11 +60,18 @@
           {% endif %}
         </td>
         <td>
+          {% if not u.is_revoked %}
           {% if u.is_active %}
           <form method="post" action="{{ url_for('admin_users_disable', user_id=u.id) }}" class="d-inline">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button class="btn btn-sm btn-warning" type="submit">Disable</button>
           </form>
+          {% else %}
+          <form method="post" action="{{ url_for('admin_users_enable', user_id=u.id) }}" class="d-inline">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="btn btn-sm btn-success" type="submit">Enable</button>
+          </form>
+          {% endif %}
           {% endif %}
 
           {% if not u.is_revoked %}

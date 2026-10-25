@@ -28,13 +28,13 @@
         <td>{{ exam.submitted_shares }} / {{ exam.threshold }}</td>
         <td>
           {% if exam.deactivated %}
-          <form method="post" action="{{ url_for('examiner_toggle_exam', exam_id=exam.exam_id) }}" style="display:inline;">
+          <form method="post" action="{{ url_for('examiner_toggle_exam', exam_id=exam.exam_id) }}" class="d-inline">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button type="submit" class="btn btn-sm btn-outline-success" onclick="return confirm('Are you sure you want to activate this exam? This will make it appear in active lists again.')">Activate</button>
           </form>
           <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('examiner_exam_detail', exam_id=exam.exam_id) }}">View</a>
           {% else %}
-          <form method="post" action="{{ url_for('examiner_toggle_exam', exam_id=exam.exam_id) }}" style="display:inline;">
+          <form method="post" action="{{ url_for('examiner_toggle_exam', exam_id=exam.exam_id) }}" class="d-inline">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Are you sure you want to deactivate this exam? This will hide it from active lists but keep all history intact.')">Deactivate</button>
           </form>

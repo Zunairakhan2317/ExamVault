@@ -59,3 +59,85 @@ def test_revocation_via_crl():
 
     # Verification against this CRL must fail
     assert verify_certificate(cert_pem, crl_pem=crl_pem) is False
+
+
+
+# --- Plan 6.5 / 6.6: revoke(), signed CRL, and the per-user certificate check -------------------------
+
+import sqlite3
+
+
+@pytest.fixture
+def audit_events(monkeypatch):
+    """Capture audit writes instead of hitting a real audit chain."""
+    events: list[tuple] = []
+    import web.audit_log as audit_log
+
+    monkeypatch.setattr(audit_log, "log_event", lambda c, actor, action, details=None: events.append((actor, action, details)))
+    return events
+
+
+@pytest.fixture
+def cert_db(audit_events):
+    """In-memory certificates table."""
+    conn = sqlite3.connect(":memory:")
+    conn.row_factory = sqlite3.Row
+    conn.execute(
+        "CREATE TABLE certificates (serial TEXT PRIMARY KEY, user_id INTEGER NOT NULL, pem TEXT NOT NULL, "
+        "issued_at TEXT NOT NULL, revoked_at TEXT)"
+    )
+    return conn
+
+
+def _issue(conn, username: str, user_id: int) -> str:
+    key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    pub = key.public_key().public_bytes(serialization.Encoding.PEM, serialization.PublicFormat.SubjectPublicKeyInfo)
+    serial, pem = issue_certificate(username, "invigilator", pub)
+    conn.execute("INSERT INTO certificates VALUES (?, ?, ?, ?, NULL)", (serial, user_id, pem, "2026-10-25T00:00:00"))
+    conn.commit()
+    return serial
+
+
+def test_revoke_signs_a_crl_and_blocks_only_that_user(cert_db, audit_events):
+    from cryptography import x509
+    from crypto import pki
+
+    alice, bob = _issue(cert_db, "alice", 1), _issue(cert_db, "bob", 2)
+    assert pki.user_certificate_ok(cert_db, 1) and pki.user_certificate_ok(cert_db, 2)
+
+    crl_pem = pki.revoke(cert_db, alice, "Left job", actor="admin")
+
+    assert pki.user_certificate_ok(cert_db, 1) is False
+    assert pki.user_certificate_ok(cert_db, 2) is True
+    crl = x509.load_pem_x509_crl(crl_pem.encode())
+    assert {entry.serial_number for entry in crl} == {int(alice, 16)}
+    assert crl.is_signature_valid(get_or_create_root_ca()[1].public_key())
+    assert audit_events[-1][1] == "certificate_revoked"
+    assert int(bob, 16) not in {entry.serial_number for entry in crl}
+
+
+def test_user_without_certificate_is_not_blocked(cert_db):
+    from crypto import pki
+
+    assert pki.user_certificate_ok(cert_db, 42) is True
+
+
+def test_wrong_crl_file_is_ignored_and_rebuilt_from_database(cert_db):
+    from crypto import pki
+
+    _issue(cert_db, "alice", 1)
+    bob = _issue(cert_db, "bob", 2)
+    pki.CRL_PATH.write_text(build_crl([int(bob, 16)]))  # hand-made CRL that revokes the wrong person
+    assert pki.user_certificate_ok(cert_db, 2) is True  # database is the source of truth
+    assert pki.user_certificate_ok(cert_db, 1) is True
+
+
+def test_revoke_rejects_unknown_serial_and_empty_reason(cert_db):
+    from crypto import pki
+
+    alice = _issue(cert_db, "alice", 1)
+    with pytest.raises(ValueError):
+        pki.revoke(cert_db, "0xdeadbeef", "Left job")
+    with pytest.raises(ValueError):
+        pki.revoke(cert_db, alice, "  ")
+    assert pki.user_certificate_ok(cert_db, 1) is True

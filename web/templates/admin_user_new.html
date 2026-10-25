@@ -72,8 +72,17 @@
         <div class="form-text">Min 12 characters. If "Generate" is checked, a secure random password is created.</div>
       </div>
 
-      <button class="btn btn-primary" type="submit">Create user</button>
-      <a class="btn btn-secondary ms-2" href="{{ url_for('admin_users') }}">Cancel</a>
+    <div class="d-flex justify-content-center mt-3">
+  <button type="submit" class="btn btn-primary btn-sm me-2">
+    Create user
+  </button>
+  <a href="{{ url_for('admin_users') }}" class="btn btn-secondary btn-sm">
+    Cancel
+  </a>
+</div>
+
+
+
     </form>
     {% endif %}
   </div>

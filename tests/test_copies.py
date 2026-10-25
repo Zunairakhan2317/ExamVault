@@ -234,9 +234,9 @@ def test_variants_page_shows_slots_from_the_paper(env):
     exam_id = only_exam_id()
     text = env.client("exm1").get(f"/examiner/variants?exam_id={exam_id}").get_data(as_text=True)
     for expected in (
-        f"Total slots: {SLOT_COUNT} (minimum 40)", "Need at least 40 slots", "Variant A", "Variant B", "Explain",
+        f"Total slots: {SLOT_COUNT} (minimum 40)", "Need at least 40 slots", "Variant 1", "Variant 2", "Explain",
         "Describe", "Slot number", "Question number", "Marks", "Reviewed by", "Mark reviewed", "Flag doubtful",
-        "Dono variants ka matlab, marks aur numbers bilkul same hone chahiye.", "<progress",
+        "Variants means shuffled versions of the same question with same marks and numbers.", "<progress",
     ):
         assert expected in text
     assert "style=" not in text and "onclick=" not in text
