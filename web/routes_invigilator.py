@@ -22,7 +22,7 @@ from flask_login import current_user
 from auth.rbac import role_required
 from auth.schnorr import verify_schnorr_proof
 from crypto import pki
-from web import copy_service, exam_store, share_flow
+from web import copy_service, exam_store, rotation_flow, share_flow
 from web.audit_log import log_event
 from web.db import get_db
 
@@ -72,7 +72,44 @@ def register(app: Flask) -> None:
     @app.get("/invigilator/exam/<exam_id>")
     @role_required("invigilator")
     def invigilator_exam(exam_id: str):
-        return render_template("invigilator_exam.html", view=_view(_exam_or_404(exam_id)))
+        ceremony = rotation_flow.get_ceremonies(current_app).get(exam_id)
+        return render_template(
+            "invigilator_exam.html", view=_view(_exam_or_404(exam_id)),
+            rotation_open=ceremony is not None and current_user.id not in ceremony.approvals,
+        )
+
+    @app.route("/invigilator/rotation/<exam_id>", methods=["GET", "POST"])
+    @role_required("invigilator")
+    def rotation_approve(exam_id: str):
+        """Approve a share rotation ceremony with your own private key (plan 3.7: k holders approve)."""
+        exam = _exam_or_404(exam_id)
+        conn = get_db()
+        ceremonies = rotation_flow.get_ceremonies(current_app)
+        if request.method == "POST":
+            upload = request.files.get("keyfile")
+            key_pem = upload.stream.read(share_flow.MAX_KEY_FILE_BYTES + 1) if upload else b""
+            keys_dir = copy_service.keys_dir_for(current_app)
+            try:
+                result = rotation_flow.approve(
+                    conn, ceremonies, pending, exam_id=exam_id, user_id=current_user.id,
+                    username=current_user.username, key_pem=key_pem, keys_dir=keys_dir,
+                    load_signing_key=lambda: rotation_flow.load_examiner_signing_key(keys_dir),
+                )
+            except share_flow.ShareRefused as refused:
+                log_event(conn, current_user.username, "rotation_refused", {"exam_id": exam_id, "reason": refused.reason})
+                flash(refused.message, "danger")
+                return redirect(f"/invigilator/rotation/{exam_id}")
+            if result["outcome"] == "rotated":
+                flash("Rotation complete. The paper was re-keyed and new shares were issued.", "success")
+                return redirect(f"/invigilator/exam/{exam_id}")
+            flash(f"Approval recorded ({result['received']} of {result['needed']}).", "success")
+            return redirect(f"/invigilator/rotation/{exam_id}")
+        ceremony = ceremonies.get(exam_id)
+        return render_template(
+            "rotation_approve.html", view=_view(exam), ceremony=ceremony,
+            approved=ceremony is not None and current_user.id in ceremony.approvals,
+            received=len(ceremony.approvals) if ceremony else 0,
+        )
 
     @app.route("/invigilator/submit-share/<exam_id>", methods=["GET", "POST"])
     @role_required("invigilator")

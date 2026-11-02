@@ -365,3 +365,92 @@ def test_revoked_certificate_is_refused_through_the_crl(env):
     assert "revoked" in page.get_data(as_text=True).lower()
     assert "revoked_certificate" in audit_text(env)
     assert env.conn.execute("SELECT COUNT(*) FROM share_submissions").fetchone()[0] == 0
+
+
+# --- share rotation ceremony over HTTP (plan 3.7) ---------------------------------------------------------
+
+def test_rotation_ceremony_end_to_end(env, tmp_path):
+    exam_id = make_exam(env)  # 3-of-5, holders inv1..inv5
+    keys_dir = tmp_path / "ceremony_keys"
+    keys_dir.mkdir()
+    env.app.config["KEYS_DIR"] = str(keys_dir)
+    for name in USERS:
+        (keys_dir / f"{name}_public.pem").write_bytes(public_pem(env.rsa[name].public_key()))
+    (keys_dir / "examiner_signing.pem").write_bytes(
+        env.signing.private_bytes(
+            serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8, serialization.NoEncryption()
+        )
+    )
+    env.conn.execute("UPDATE users SET is_active = 0 WHERE username = 'inv5'")  # the leaver
+    env.conn.commit()
+
+    admin = env.client("admin1")
+    page = admin.get("/admin/rotations").get_data(as_text=True)
+    assert exam_id in page and "Needs rotation" in page
+
+    opened = admin.post(f"/admin/exams/{exam_id}/rotate", data={}, follow_redirects=True).get_data(as_text=True)
+    assert "Ceremony opened" in opened and "Ceremony open" in opened
+
+    banner = env.client("inv1").get(f"/invigilator/exam/{exam_id}").get_data(as_text=True)
+    assert "Approve rotation" in banner
+
+    def approve(name):
+        return env.client(name).post(
+            f"/invigilator/rotation/{exam_id}",
+            data={"keyfile": (io.BytesIO(private_pem(env.rsa[name])), "key.pem")},
+            content_type="multipart/form-data",
+            follow_redirects=True,
+        ).get_data(as_text=True)
+
+    assert "Approval recorded (1 of 3)" in approve("inv1")
+    assert "Approval recorded (2 of 3)" in approve("inv2")
+    assert "Rotation complete" in approve("inv3")
+
+    generations = env.conn.execute(
+        "SELECT generation, is_current, COUNT(*) FROM shares WHERE exam_id = ? GROUP BY generation, is_current",
+        (exam_id,),
+    ).fetchall()
+    assert sorted(tuple(r) for r in generations) == [(1, 0, 5), (2, 1, 4)]
+    assert env.client("inv5").get(f"/invigilator/exam/{exam_id}").status_code in (302, 401, 403, 404)  # leaver holds nothing
+    audit = audit_text(env)
+    assert "rotation_ceremony_started" in audit and "rotation_completed" in audit
+
+    # the new shares really open the paper: three of the four remaining holders submit
+    submit_as(env, "inv1", exam_id)
+    submit_as(env, "inv2", exam_id)
+    assert b"Paper released" in submit_as(env, "inv3", exam_id).data
+    assert exam_store.is_released(env.conn, exam_id)
+
+
+def test_old_share_of_the_leaver_is_refused_after_rotation(env, tmp_path):
+    exam_id = make_exam(env)
+    keys_dir = tmp_path / "ceremony_keys2"
+    keys_dir.mkdir()
+    env.app.config["KEYS_DIR"] = str(keys_dir)
+    for name in USERS:
+        (keys_dir / f"{name}_public.pem").write_bytes(public_pem(env.rsa[name].public_key()))
+    (keys_dir / "examiner_signing.pem").write_bytes(
+        env.signing.private_bytes(
+            serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8, serialization.NoEncryption()
+        )
+    )
+    env.client("admin1").post(f"/admin/exams/{exam_id}/rotate", data={}, follow_redirects=True)
+    for name in USERS[:3]:
+        env.client(name).post(
+            f"/invigilator/rotation/{exam_id}",
+            data={"keyfile": (io.BytesIO(private_pem(env.rsa[name])), "key.pem")},
+            content_type="multipart/form-data",
+            follow_redirects=True,
+        )
+    assert env.conn.execute("SELECT MAX(generation) FROM shares WHERE exam_id = ?", (exam_id,)).fetchone()[0] == 2
+    # an old wrapped share cannot be used for release any more
+    old_blobs = [
+        bytes(env.conn.execute(
+            "SELECT wrapped_share_blob FROM shares WHERE exam_id = ? AND generation = 1 AND holder_user_id = ?",
+            (exam_id, env.ids[name]),
+        ).fetchone()[0])
+        for name in USERS[:3]
+    ]
+    with pytest.raises(ValueError):
+        paper_service.release_exam(exam_id, old_blobs, [env.rsa[n] for n in USERS[:3]], env.signing.public_key())
+

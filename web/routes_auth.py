@@ -40,15 +40,16 @@ from web.user import load_user_by_id
 PENDING_SECONDS = 300  # time allowed between the password step and the code step
 
 NAV = {
-    "admin": [("Dashboard", "/dashboard"), ("Users", "/admin/users"), ("Alerts", "/admin/alerts"),
+    "admin": [("Dashboard", "/dashboard"), ("Users", "/admin/users"), ("Rotation", "/admin/rotations"),
+              ("Alerts", "/admin/alerts"),
               ("Files", "/files"), ("Demo", "/demo/ecb")],
     "examiner": [("Dashboard", "/dashboard"), ("Upload Exam", "/examiner/upload"),
                  ("My Exams", "/examiner/exams"), ("Variants", "/examiner/variants"),
-                 ("Leak Analyzer", "/tracing/analyze"), ("Files", "/files")],
-    "invigilator": [("Dashboard", "/dashboard"), ("My Exams", "/dashboard"), ("Files", "/files")],
+                 ("Leak Analyzer", "/tracing/analyze"), ("Files", "/files"), ("Demo", "/demo/ecb")],
+    "invigilator": [("Dashboard", "/dashboard"), ("My Exams", "/dashboard"), ("Files", "/files"), ("Demo", "/demo/ecb")],
     "auditor": [("Dashboard", "/dashboard"), ("Audit Log", "/auditor/log"),
                 ("Verify", "/auditor/verify"), ("Daily Roots", "/auditor/roots"),
-                ("Leak Analyzer", "/tracing/analyze")],
+                ("Leak Analyzer", "/tracing/analyze"), ("Alerts", "/admin/alerts"), ("Files", "/files"), ("Demo", "/demo/ecb")],
 }
 
 GENERIC_LOGIN_ERROR = "Invalid username or password"
@@ -147,7 +148,13 @@ def register(app: Flask) -> None:
     @app.context_processor
     def _inject_nav() -> dict:
         role = getattr(current_user, "role", None) if current_user.is_authenticated else None
-        return {"nav_items": NAV.get(role, [])}
+        alert_count = 0
+        if role in ("admin", "auditor"):
+            try:
+                alert_count = int(get_db().execute("SELECT COUNT(*) FROM honeytoken_events").fetchone()[0])
+            except sqlite3.Error:
+                alert_count = 0
+        return {"nav_items": NAV.get(role, []), "alert_count": alert_count}
 
     @app.route("/login", methods=["GET", "POST"])
     @limiter.limit(lockout.LOGIN_RATE_LIMIT, methods=["POST"])

@@ -14,14 +14,14 @@ from typing import Any
 
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
-from flask import Flask, abort, flash, make_response, redirect, render_template, request, send_file, url_for
+from flask import Flask, abort, current_app, flash, make_response, redirect, render_template, request, send_file, url_for
 from flask_login import current_user
 
 from auth.passwords import check_policy, hash_password
 from auth.rbac import role_required
 from crypto import pki
 from crypto.pki import issue_certificate
-from web import exam_store
+from web import exam_store, rotation_flow, share_flow
 from web.audit_log import log_event
 from web.db import get_db
 
@@ -363,29 +363,56 @@ def register(app: Flask) -> None:
         flash("User revoked. Please rotate shares for affected exams", "success")
         return redirect(url_for("admin_users"))
 
-    # Rotation Admin Screen Routes (Plan 3.7)
+    # Rotation Admin Screen Routes (Plan 3.7): the admin opens a ceremony, k holders approve, the server rotates
+    def _rotation_keys_dir() -> Path:
+        return Path(current_app.config.get("KEYS_DIR") or KEYS_DIR)
+
     @app.get("/admin/rotations")
     @role_required("admin")
     def admin_rotations():
-        conn = get_db()
-        revoked_users = conn.execute("SELECT id, username FROM users WHERE is_active = 0").fetchall()
-        exams = conn.execute("SELECT exam_id, released_at FROM exam_release").fetchall()
-        return render_template("admin_rotation.html", revoked_users=revoked_users, exams=exams)
+        rows = rotation_flow.admin_overview(
+            get_db(), rotation_flow.get_ceremonies(current_app), _rotation_keys_dir()
+        )
+        return render_template("admin_rotation.html", rows=rows)
 
     @app.post("/admin/exams/<exam_id>/rotate")
     @role_required("admin")
     def admin_rotate_exam(exam_id: str):
-        """Rotation request. Honest behaviour: real rotation needs a quorum ceremony (plan 3.7: k current
-        holders unwrap their shares so the master secret can be rebuilt in memory), which is not built yet.
-        Until then NO shares are changed, and the page and the audit log say exactly that.
-        """
+        """Open a rotation ceremony: k current holders must approve before any share changes."""
         conn = get_db()
         if exam_store.get_exam(exam_id) is None:
             abort(404)
-        log_event(conn, current_user.username, "rotation_requested", {"exam_id": exam_id, "performed": False})
+        extras: list[int] = []
+        for value in request.form.getlist("extra_holders"):
+            if not value.isdigit():
+                abort(400)
+            extras.append(int(value))
+        raw_threshold = request.form.get("new_threshold", "").strip()
+        if raw_threshold and not raw_threshold.isdigit():
+            abort(400)
+        try:
+            ceremony = rotation_flow.start_ceremony(
+                conn, rotation_flow.get_ceremonies(current_app), exam_id=exam_id,
+                admin_username=current_user.username, keys_dir=_rotation_keys_dir(),
+                extra_holder_ids=extras, new_threshold=int(raw_threshold) if raw_threshold else None,
+            )
+        except share_flow.ShareRefused as refused:
+            log_event(conn, current_user.username, "rotation_refused", {"exam_id": exam_id, "reason": refused.reason})
+            flash(refused.message, "danger")
+            return redirect(url_for("admin_rotations"))
         flash(
-            f"Rotation for exam {exam_id} was NOT performed: the quorum ceremony is not available yet. "
-            "No shares were changed; the request has been recorded in the audit log.",
-            "warning",
+            f"Ceremony opened for exam {exam_id}. {ceremony.quorum} current holders must approve "
+            "(each on their own login). Nothing changes until then.",
+            "success",
         )
+        return redirect(url_for("admin_rotations"))
+
+    @app.post("/admin/exams/<exam_id>/rotate/cancel")
+    @role_required("admin")
+    def admin_rotation_cancel(exam_id: str):
+        """Close an open ceremony and forget every approval held for it."""
+        cancelled = rotation_flow.cancel_ceremony(
+            get_db(), rotation_flow.get_ceremonies(current_app), exam_id, current_user.username
+        )
+        flash("Ceremony cancelled." if cancelled else "No ceremony was open for this exam.", "info")
         return redirect(url_for("admin_rotations"))

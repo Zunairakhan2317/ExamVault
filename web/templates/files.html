@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Files - ExamVault{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1 class="h4 mb-0">Files</h1>
+</div>
+<div class="card shadow-sm">
+  <div class="table-responsive">
+    <table class="table align-middle mb-0">
+      <thead><tr><th>Name</th><th>Location</th><th>Size</th><th>Modified</th></tr></thead>
+      <tbody>
+        {% for f in rows %}
+        <tr>
+          <td><a href="{{ f.href }}">{{ f.name }}</a></td>
+          <td class="text-muted">{{ f.location }}</td>
+          <td class="text-muted">{{ f.size }}</td>
+          <td class="text-muted">{{ f.modified }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

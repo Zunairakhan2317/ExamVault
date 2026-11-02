@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Security alerts - ExamVault{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-2">
+  <h1 class="h4 mb-0">Security alerts <span class="text-muted fs-6">({{ events|length }})</span></h1>
+</div>
+<p class="text-muted">
+  A decoy file named <code>FINAL_Exam_Paper_ANSWERS.pdf</code> sits in the file list. Nobody has a real reason
+  to open it, so every hit below is a CRITICAL event (also written to the audit log). Non-admin accounts are
+  suspended at once; an admin who opens it only raises the alert.
+</p>
+{% if events %}
+<div class="card shadow-sm">
+  <div class="table-responsive">
+    <table class="table align-middle mb-0">
+      <thead><tr><th>Time (UTC)</th><th>User</th><th>Role</th><th>IP</th><th>Account</th>{% if current_user.role == 'admin' %}<th>Action</th>{% endif %}</tr></thead>
+      <tbody>
+        {% for e in events %}
+        <tr>
+          <td>{{ e.ts }}</td>
+          <td><code>{{ e.username }}</code></td>
+          <td>{{ e.role }}</td>
+          <td>{{ e.ip }}</td>
+          <td>{% if e.suspended %}<span class="badge text-bg-danger">Suspended</span>{% else %}<span class="badge text-bg-secondary">Active</span>{% endif %}</td>
+          {% if current_user.role == 'admin' %}
+          <td>
+            {% if e.suspended %}
+            <form method="post" action="/admin/alerts/{{ e.id }}/reinstate" class="d-inline">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" class="btn btn-outline-warning btn-sm">Reinstate after review</button>
+            </form>
+            {% else %}<span class="text-muted small">-</span>{% endif %}
+          </td>
+          {% endif %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% else %}
+<div class="alert alert-success">All clear. Nobody has opened the decoy file.</div>
+{% endif %}
+{% endblock %}

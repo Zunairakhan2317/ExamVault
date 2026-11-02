@@ -493,7 +493,7 @@ def test_rotation_page_does_not_claim_a_rotation_happened(auth_and_db):
     app, conn, ids = auth_and_db
     client = _auth_client(app)
     page = client.get("/admin/rotations").get_data(as_text=True)
-    assert "No shares are changed" in page
+    assert "successfully rotated" not in page and "ceremony" in page.lower()
     assert client.post("/admin/exams/not-an-exam/rotate", data={"csrf_token": "t"}).status_code == 404
     has_table = conn.execute("SELECT 1 FROM sqlite_master WHERE name = 'audit_entries'").fetchone()
     audit = str([tuple(r) for r in conn.execute("SELECT * FROM audit_entries")]) if has_table else ""

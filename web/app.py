@@ -20,7 +20,9 @@ from web.user import load_user_by_id
 from web.routes_admin import register as register_admin_routes
 from web.routes_auditor import register as register_auditor_routes
 from web.routes_auth import register as register_auth_routes
+from web.routes_demo import register as register_demo_routes
 from web.routes_examiner import register as register_examiner_routes
+from web.routes_honeytoken import register as register_honeytoken_routes
 from web.routes_invigilator import register as register_invigilator_routes
 
 _INTERNAL_KEYS = {"SKIP_DOTENV", "SECRET_KEY", "TOTP_ENCRYPTION_KEY"}
@@ -229,6 +231,8 @@ def create_app(config: dict | None = None) -> Flask:
     register_invigilator_routes(app)
     register_auditor_routes(app)
     register_examiner_routes(app)
+    register_honeytoken_routes(app)
+    register_demo_routes(app)
 
     @app.get("/")
     def index():

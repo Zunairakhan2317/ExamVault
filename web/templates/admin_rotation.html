@@ -1,48 +1,102 @@
 {% extends "base.html" %}
+{% from "icons.html" import ico %}
+{% block title %}Key rotation - ExamVault{% endblock %}
+{% block head %}
+  <link href="{{ url_for('static', filename='dashboard.css') }}" rel="stylesheet">
+{% endblock %}
 {% block content %}
-<div class="container mt-4">
-    <h2>Key & Share Rotation Dashboard (Plan 3.7)</h2>
-    <p class="text-muted">Manage share rotation for exams affected by user revocations or compromised keys.</p>
-    <div class="alert alert-warning" role="alert">
-        Rotation needs a quorum ceremony (k current holders, plan 3.7) that is not built yet.
-        Pressing the button below only records a request in the audit log. <strong>No shares are changed.</strong>
-    </div>
-    
-    <hr>
-    <h4>Revoked / Compromised Users</h4>
-    <ul>
-        {% for u in revoked_users %}
-        <li>User: <strong>{{ u.username }}</strong> (ID: {{ u.id }})</li>
-        {% else %}
-        <li>No revoked users currently.</li>
-        {% endfor %}
-    </ul>
-
-    <h4 class="mt-4">Active Exams</h4>
-    <table class="table table-bordered">
-        <thead>
-            <tr>
-                <th>Exam ID</th>
-                <th>Status</th>
-                <th>Action</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for exam in exams %}
-            <tr>
-                <td>{{ exam.exam_id }}</td>
-                <td>Released / Active</td>
-                <td>
-                    <form action="{{ url_for('admin_rotate_exam', exam_id=exam.exam_id) }}" method="POST">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <button type="submit" class="btn btn-warning btn-sm">Request Rotation</button>
-                    </form>
-                </td>
-            </tr>
-            {% else %}
-            <tr><td colspan="3">No exams found.</td></tr>
-            {% endfor %}
-        </tbody>
-    </table>
+<div class="d-flex justify-content-between align-items-center mb-2">
+  <h1 class="h3 mb-0">Key &amp; share rotation</h1>
 </div>
+<p class="text-muted">
+  Rotation replaces the key shares of an exam that is not released yet. You open a <strong>ceremony</strong>;
+  then <strong>k current holders</strong> approve it, each with their own login and private key. When enough
+  have approved, the server rebuilds the old key in memory only, re-encrypts the paper under a brand-new key,
+  issues new shares to the new holder set and retires the old ones. Revoked holders cannot approve and
+  hold nothing afterwards.
+</p>
+
+{% for row in rows %}
+<div class="card shadow-sm mb-3">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+      <div>
+        <h2 class="h6 mb-1"><code>{{ row.exam_id }}</code> {% if row.title %}<span class="text-muted">{{ row.title }}</span>{% endif %}</h2>
+        <div class="small text-muted">Threshold {{ row.threshold }} &middot; share generation {{ row.generation }}</div>
+      </div>
+      <div>
+        {% if row.ceremony %}<span class="badge text-bg-info">Ceremony open</span>
+        {% elif row.needs_rotation %}<span class="badge text-bg-danger">Needs rotation</span>
+        {% else %}<span class="badge text-bg-success">Up to date</span>{% endif %}
+      </div>
+    </div>
+
+    <div class="table-responsive mt-3">
+      <table class="table table-sm align-middle mb-0">
+        <thead><tr><th>Holder</th><th>Status</th><th>Share generation</th>{% if row.ceremony %}<th>Approved</th>{% endif %}</tr></thead>
+        <tbody>
+          {% for h in row.holders %}
+          <tr>
+            <td><code>{{ h.username }}</code></td>
+            <td>{% if h.usable %}<span class="badge text-bg-success">Active</span>{% else %}<span class="badge text-bg-danger">Revoked / disabled</span>{% endif %}</td>
+            <td>{{ h.generation }}</td>
+            {% if row.ceremony %}<td>{% if h.username in row.approved_names %}<span class="badge text-bg-success">Approved</span>{% elif h.usable %}<span class="text-muted small">waiting</span>{% else %}<span class="text-muted small">cannot approve</span>{% endif %}</td>{% endif %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {% if row.ceremony %}
+    <div class="mt-3">
+      <label class="form-label" for="progress-{{ loop.index }}">Approvals: {{ row.ceremony.approvals|length }} of {{ row.ceremony.quorum }} needed</label>
+      <progress id="progress-{{ loop.index }}" class="w-100" max="{{ row.ceremony.quorum }}" value="{{ row.ceremony.approvals|length }}"></progress>
+      <div class="small text-muted">
+        New holders: {{ row.ceremony.new_holder_ids|length }}, new threshold: {{ row.ceremony.new_threshold }}.
+        Opened by {{ row.ceremony.started_by }}; expires in about {{ row.minutes_left }} min.
+        Holders approve at <code>/invigilator/rotation/{{ row.exam_id }}</code> (a banner appears on their exam page).
+      </div>
+      <form method="post" action="{{ url_for('admin_rotation_cancel', exam_id=row.exam_id) }}" class="mt-2">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="btn btn-outline-danger btn-sm">Cancel ceremony</button>
+      </form>
+    </div>
+    {% elif not row.can_start %}
+    <div class="alert alert-danger mt-3 mb-0">
+      Only {{ row.usable_count }} usable holders remain but {{ row.threshold }} must approve, so a ceremony cannot
+      start. The paper can no longer be opened by this holder group.
+    </div>
+    {% else %}
+    <form method="post" action="{{ url_for('admin_rotate_exam', exam_id=row.exam_id) }}" class="mt-3">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="row g-3 align-items-end">
+        <div class="col-sm-3">
+          <label class="form-label" for="nt-{{ loop.index }}">New threshold k</label>
+          <input class="form-control" id="nt-{{ loop.index }}" name="new_threshold" type="number" min="2" value="{{ row.default_threshold }}">
+        </div>
+        <div class="col-sm-6">
+          {% if row.extras %}
+          <div class="form-label">Add holders (optional)</div>
+          {% for c in row.extras %}
+          <div class="form-check form-check-inline">
+            <input class="form-check-input" type="checkbox" name="extra_holders" value="{{ c.user_id }}" id="extra-{{ loop.index }}-{{ c.user_id }}">
+            <label class="form-check-label" for="extra-{{ loop.index }}-{{ c.user_id }}">{{ c.username }}</label>
+          </div>
+          {% endfor %}
+          {% else %}
+          <div class="small text-muted">No other eligible invigilators to add (they need an active account, a certificate and a public key file).</div>
+          {% endif %}
+        </div>
+        <div class="col-sm-3 text-sm-end">
+          <button type="submit" class="dbtn dbtn-primary">{{ ico('plus') }} Start rotation ceremony</button>
+        </div>
+      </div>
+      <div class="small text-muted mt-2">New holders: the {{ row.usable_count }} usable holders above plus any you add. k must be between 2 and the number of new holders.</div>
+    </form>
+    {% endif %}
+  </div>
+</div>
+{% else %}
+<div class="alert alert-secondary">No unreleased exams with shares to rotate. A released paper cannot be protected by rotation.</div>
+{% endfor %}
 {% endblock %}

@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Approve rotation - ExamVault{% endblock %}
+{% block content %}
+<h1 class="h4">Approve share rotation for <code>{{ view.exam_id }}</code></h1>
+{% if not ceremony %}
+<div class="alert alert-secondary">No rotation ceremony is open for this exam right now.</div>
+<a class="btn btn-outline-secondary" href="/invigilator/exam/{{ view.exam_id }}">Back to exam</a>
+{% else %}
+<div class="card shadow-sm">
+  <div class="card-body p-4">
+    <p>
+      The admin opened a key rotation for this exam. <strong>{{ ceremony.quorum }} current holders</strong> must
+      approve. Approvals so far: <strong>{{ received }} of {{ ceremony.quorum }}</strong>.
+    </p>
+    <progress class="w-100 mb-3" max="{{ ceremony.quorum }}" value="{{ received }}" aria-label="Approvals received"></progress>
+    {% if approved and received < ceremony.quorum %}
+    <div class="alert alert-success">You have already approved. Waiting for the other holders.</div>
+    {% else %}
+    <form method="post" action="/invigilator/rotation/{{ view.exam_id }}" enctype="multipart/form-data" autocomplete="off">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="mb-3">
+        <label class="form-label" for="keyfile">Upload your private key file (.pem)</label>
+        <input class="form-control" id="keyfile" name="keyfile" type="file" accept=".pem" required>
+        <div class="small text-muted mt-1">
+          Your key only unlocks your own share. It is not saved: your share is kept in server memory until the
+          rotation finishes or the ceremony is cancelled or expires, and then it is dropped.
+        </div>
+      </div>
+      <button class="btn btn-primary" type="submit">Approve rotation</button>
+      <a class="btn btn-outline-secondary ms-2" href="/invigilator/exam/{{ view.exam_id }}">Cancel</a>
+    </form>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+{% endblock %}

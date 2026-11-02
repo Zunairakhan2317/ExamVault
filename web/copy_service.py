@@ -34,8 +34,10 @@ from typing import Any
 from xml.sax.saxutils import escape
 
 from crypto.aes_gcm import decrypt, encrypt
+from tracing.analyzer import normalize_text, token_hash
 from tracing.codes import hamming_distance
 
+ANCHOR_WORDS = 3  # fixed words hashed on each side of a slot (see parse_template)
 MIN_SLOTS = 40
 MAX_SLOTS = 400
 MAX_PDF_PAGES = 200
@@ -87,11 +89,20 @@ def _slot_matches(text: str) -> list[tuple[re.Match, list[str]]]:
 def parse_template(text: str) -> list[dict[str, Any]]:
     """Variant slots found in the paper text (same slot format as tracing/parser.py).
 
-    Each slot: slot_id, question_no, group_index, variants (the first two options), marks (or None).
+    Each slot: slot_id, question_no, group_index, variants (the first two options), marks (or None), and the
+    anchors `before` / `after`: hashes of up to 3 fixed words on each side of the slot. The Leak Analyzer uses
+    them to find where in a leaked text THIS slot sits (so a verb that repeats in many questions is read in
+    the right place). Only hashes are stored, never the surrounding words, so the stored slot file does not
+    contain the paper's text.
     """
     slots: list[dict[str, Any]] = []
     last_label_start, in_question = -1, 0
-    for match, options in _slot_matches(text):
+    found = _slot_matches(text)
+    for index, (match, options) in enumerate(found):
+        previous_end = found[index - 1][0].end() if index else 0
+        next_start = found[index + 1][0].start() if index + 1 < len(found) else len(text)
+        before = [token_hash(t) for t in normalize_text(text[previous_end:match.start()]).split()[-ANCHOR_WORDS:]]
+        after = [token_hash(t) for t in normalize_text(text[match.end():next_start]).split()[:ANCHOR_WORDS]]
         labels = list(_QUESTION_LABEL.finditer(text, 0, match.start() + 1))  # +1 so a label right before '{' is seen
         label = labels[-1] if labels else None
         label_start = label.start() if label else -1
@@ -106,6 +117,8 @@ def parse_template(text: str) -> list[dict[str, Any]]:
             "group_index": in_question,
             "variants": options[:2],
             "marks": int(marks.group(1)) if marks else None,
+            "before": before,
+            "after": after,
         })
         in_question += 1
     return slots

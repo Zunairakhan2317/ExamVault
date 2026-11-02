@@ -42,9 +42,10 @@
           {% set ns.seen = ns.seen + [href] %}
           {% set active = request.path == href or request.path.startswith(href ~ '/') %}
           <li>
-            <a class="sb-link{% if active %} active{% endif %}" href="{{ href }}" data-label="{{ label }}"{% if active %} aria-current="page"{% endif %}>
+            <a class="sb-link{% if active %} active{% endif %}{% if label == 'Alerts' and alert_count %} text-danger{% endif %}" href="{{ href }}" data-label="{{ label }}"{% if active %} aria-current="page"{% endif %}>
               {{ ico(nav_icons.get(label, 'circle')) }}
               <span class="sb-text sb-label">{{ label }}</span>
+              {% if label == 'Alerts' and alert_count %}<span class="badge text-bg-danger ms-auto sb-label" aria-label="{{ alert_count }} security alerts">{{ alert_count }}</span>{% endif %}
             </a>
           </li>
           {% endif %}
@@ -86,11 +87,35 @@
   {% else %}
   <main class="container py-4">
   {% endif %}
+    <div class="toast-container" id="toast-container"></div>
     {% with messages = get_flashed_messages(with_categories=true) %}
       {% for category, message in messages %}
-        <div class="alert alert-{{ category }}">{{ message }}</div>
+        <div class="toast toast-{{ category }}" id="toast-{{ loop.index0 }}" role="alert" aria-live="polite" aria-atomic="true">
+          <span class="toast-icon">{{ ico('check' if category == 'success' else 'bell' if category == 'danger' else 'circle') }}</span>
+          <div class="toast-body">
+            <div class="toast-title">{{ category|capitalize }}</div>
+            <div class="toast-message">{{ message }}</div>
+          </div>
+          <button class="toast-close" onclick="dismissToast('toast-{{ loop.index0 }}')">&times;</button>
+          <div class="toast-progress"></div>
+        </div>
       {% endfor %}
     {% endwith %}
+    <script nonce="{{ csp_nonce if csp_nonce else '' }}">
+      document.addEventListener("DOMContentLoaded", function () {
+        var container = document.getElementById("toast-container");
+        if (!container) return;
+        document.querySelectorAll(".toast").forEach(function (el) {
+          setTimeout(function () { el.classList.add("hiding"); setTimeout(function () { el.remove(); }, 250); }, 5000);
+        });
+      });
+      function dismissToast(id) {
+        var el = document.getElementById(id);
+        if (!el) return;
+        el.classList.add("hiding");
+        setTimeout(function () { el.remove(); }, 250);
+      }
+    </script>
     {% block content %}{% endblock %}
   </main>
   {% if auth %}
